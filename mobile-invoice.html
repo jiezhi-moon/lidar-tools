@@ -315,6 +315,24 @@ async function shareToolFile(blob, name) {
       const lines=result.text.split(/\r?\n/).map(t=>t.trim()).filter(Boolean),units=lines.filter(t=>normalizeDetectedUnit(t));
       if(/单位|單位/.test(result.text)||units.length&&units.length>=lines.length*.6)grid.separateUnit=true;
     }
+    function invoiceGridHeaderKey(h){
+      h=String(h||'').replace(/\s/g,'');
+      if(/日期/.test(h))return 'date';
+      if(/备注|備註|批注|批註/.test(h))return 'note';
+      if(/公司|客户|客戶|人名/.test(h))return 'party';
+      if(/规格|規格|型号|型號/.test(h))return 'spec';
+      if(/数量|數量/.test(h))return 'qty';
+      if(/单位|單位/.test(h))return 'unit';
+      if(/单价|單價/.test(h))return 'price';
+      if(/实收合计|實收合計/.test(h))return 'receivedTotal';
+      if(/总价合计|總價合計|金额合计|金額合計/.test(h))return 'amountTotal';
+      if(/实收|實收/.test(h))return 'received';
+      if(/总价|總價|金额|金額/.test(h))return 'amount';
+      if(/开票|開票|税|稅/.test(h))return 'taxStatus';
+      if(/送货|送貨|配送/.test(h))return 'delivery';
+      if(/名称|名稱|品名|商品/.test(h))return 'name';
+      return 'ignore';
+    }
     async function recognizeGridHeaders(canvas,grid,worker){
       // A table may begin with a company/title row above its actual headings.
       for(let bi=0;bi<Math.min(4,grid.bands.length);bi++){
@@ -322,7 +340,7 @@ async function shareToolFile(blob, name) {
         crop.getContext('2d').drawImage(canvas,0,y,canvas.width,height,0,0,canvas.width,height);
         const result=await ocrCanvas(crop,worker,`表頭欄位 ${bi+1}`,6),fields=grid.edges.slice(0,-1).map((_,i)=>{
           const text=result.words.filter(t=>t.cx>=grid.edges[i]&&t.cx<grid.edges[i+1]).sort((a,b)=>a.x0-b.x0).map(t=>t.text).join('').trim();
-          return /^(合计|合計)$/.test(text)?'amountTotal':pasteHeaderKey(text);
+          return /^(合计|合計)$/.test(text)?'amountTotal':invoiceGridHeaderKey(text);
         });
         if(['name','spec','qty','price','amount'].every(k=>fields.includes(k))){grid.headerFields=fields;grid.headerBand=bi;return}
       }
