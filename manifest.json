@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "tools": [
+    {
+      "id": "video-gif",
+      "title": "Video to GIF",
+      "summary": "Trim a video and export a looping GIF.",
+      "version": "1.0.0",
+      "sha256": "26ea8697a93b10851a59de091416de78eefd8d77081fb4b8f5540ffa60f1cb2b"
+    },
+    {
+      "id": "mobile-invoice",
+      "title": "手機開票",
+      "summary": "匯入 Excel、PDF 或圖片，編輯明細並匯出 XLSX。",
+      "version": "1.0.0",
+      "sha256": "2b2ed5ee8bb50610a48cf983bd334b5ffa83b9ad43234d17f3a42ba9a1a3d022"
+    }
+  ]
+}

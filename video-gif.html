@@ -1,0 +1,1320 @@
+<!DOCTYPE html>
+<html data-unified-ui="true" data-tool-surface="true" lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Video to GIF</title>
+  <style>
+    :root {
+      --bg: #f3ece2;
+      --bg-accent: #f7b267;
+      --panel: rgba(255, 248, 240, 0.92);
+      --panel-strong: #fff9f2;
+      --text: #23190f;
+      --muted: #705744;
+      --line: rgba(74, 44, 16, 0.14);
+      --primary: #c8553d;
+      --primary-dark: #8c3d2d;
+      --shadow: 0 28px 60px rgba(84, 47, 12, 0.16);
+      --radius: 22px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Avenir Next", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(247, 178, 103, 0.55), transparent 36%),
+        radial-gradient(circle at 82% 18%, rgba(200, 85, 61, 0.18), transparent 24%),
+        linear-gradient(135deg, #f1e7d8 0%, #f7efe5 44%, #efe5d8 100%);
+      padding: 28px 18px 44px;
+    }
+
+    .shell {
+      max-width: 1120px;
+      margin: 0 auto;
+    }
+
+    .hero {
+      margin-bottom: 22px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.62);
+      border: 1px solid rgba(255, 255, 255, 0.72);
+      font-size: 13px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--primary-dark);
+      backdrop-filter: blur(10px);
+    }
+
+    h1 {
+      margin: 16px 0 10px;
+      font-size: clamp(2.1rem, 5vw, 4.4rem);
+      line-height: 0.96;
+      letter-spacing: -0.05em;
+      max-width: 10ch;
+    }
+
+    .lead {
+      margin: 0;
+      max-width: 620px;
+      font-size: 1.03rem;
+      line-height: 1.7;
+      color: var(--muted);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1.05fr 0.95fr;
+      gap: 20px;
+      align-items: start;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid rgba(255, 255, 255, 0.76);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(14px);
+    }
+
+    .preview-card {
+      padding: 18px;
+    }
+
+    .upload {
+      display: grid;
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+
+    .file-picker {
+      position: relative;
+      overflow: hidden;
+      display: inline-flex;
+      justify-content: center;
+      align-items: center;
+      width: fit-content;
+      padding: 13px 18px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, #d1604d 0%, #bb4d39 100%);
+      color: #fff;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 10px 24px rgba(188, 77, 57, 0.26);
+    }
+
+    .file-picker input {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+    }
+
+    .hint {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.94rem;
+      line-height: 1.5;
+    }
+
+    .stage {
+      position: relative;
+      border-radius: 18px;
+      overflow: hidden;
+      background:
+        linear-gradient(135deg, rgba(40, 28, 18, 0.98), rgba(74, 47, 29, 0.98));
+      min-height: 320px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .stage video,
+    .stage img {
+      display: block;
+      width: 100%;
+      max-height: 540px;
+      object-fit: contain;
+      background: #100b07;
+    }
+
+    .empty-state {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 32px;
+      text-align: center;
+      color: rgba(255, 241, 226, 0.76);
+      font-size: 1rem;
+      letter-spacing: 0.02em;
+    }
+
+    .controls-card {
+      padding: 22px;
+    }
+
+    .section-title {
+      margin: 0 0 14px;
+      font-size: 1.15rem;
+      letter-spacing: -0.02em;
+    }
+
+    .form {
+      display: grid;
+      gap: 14px;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .field {
+      display: grid;
+      gap: 7px;
+    }
+
+    .field label {
+      font-size: 0.92rem;
+      color: var(--muted);
+    }
+
+    .field input {
+      width: 100%;
+      padding: 12px 13px;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      background: var(--panel-strong);
+      color: var(--text);
+      font: inherit;
+      outline: none;
+      transition: border-color 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .field input:focus {
+      border-color: rgba(200, 85, 61, 0.62);
+      box-shadow: 0 0 0 4px rgba(200, 85, 61, 0.12);
+    }
+
+    .meta {
+      display: grid;
+      gap: 8px;
+      padding: 14px 16px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.55);
+      border: 1px solid rgba(255, 255, 255, 0.68);
+      color: var(--muted);
+      font-size: 0.93rem;
+      line-height: 1.55;
+    }
+
+    .status-box {
+      margin-top: 16px;
+      padding: 16px;
+      border-radius: 18px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.76), rgba(255, 252, 247, 0.62));
+      border: 1px solid rgba(255, 255, 255, 0.8);
+    }
+
+    .status-line {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: center;
+      font-size: 0.95rem;
+      color: var(--muted);
+    }
+
+    .progress {
+      margin-top: 12px;
+      height: 10px;
+      border-radius: 999px;
+      background: rgba(106, 77, 51, 0.12);
+      overflow: hidden;
+    }
+
+    .progress-bar {
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, #c8553d 0%, #f09d51 100%);
+      transition: width 0.18s ease;
+    }
+
+    .actions {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 18px;
+    }
+
+    button,
+    .download-link {
+      border: none;
+      border-radius: 16px;
+      padding: 13px 18px;
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.16s ease, opacity 0.16s ease, box-shadow 0.16s ease;
+    }
+
+    button:hover,
+    .download-link:hover {
+      transform: translateY(-1px);
+    }
+
+    button:disabled {
+      opacity: 0.58;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    #generateBtn {
+      background: linear-gradient(135deg, #2d4d3b 0%, #466e55 100%);
+      color: #fff;
+      box-shadow: 0 10px 24px rgba(45, 77, 59, 0.22);
+    }
+
+    #previewRangeBtn {
+      background: rgba(255, 255, 255, 0.72);
+      color: var(--text);
+      border: 1px solid rgba(70, 48, 24, 0.12);
+    }
+
+    .download-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #c8553d 0%, #db7b4e 100%);
+      color: #fff;
+      text-decoration: none;
+      box-shadow: 0 10px 22px rgba(200, 85, 61, 0.24);
+    }
+
+    .download-link[hidden] {
+      display: none;
+    }
+
+    .small-note {
+      margin: 10px 0 0;
+      color: var(--muted);
+      font-size: 0.88rem;
+      line-height: 1.5;
+    }
+
+    .result-block {
+      margin-top: 16px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .result-block img {
+      display: block;
+      width: 100%;
+      border-radius: 18px;
+      border: 1px solid rgba(74, 44, 16, 0.08);
+      background: #fffaf4;
+    }
+
+    .result-block img[hidden] {
+      display: none;
+    }
+
+    @media (max-width: 920px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+
+      h1 {
+        max-width: none;
+      }
+    }
+
+    @media (max-width: 600px) {
+      body {
+        padding: 18px 12px 32px;
+      }
+
+      .row {
+        grid-template-columns: 1fr;
+      }
+
+      .controls-card,
+      .preview-card {
+        padding: 16px;
+      }
+
+      .stage {
+        min-height: 240px;
+      }
+    }
+  </style>
+<style>
+/* Compact tool navigation */
+.quick-nav{display:flex!important;flex-wrap:wrap;align-items:center;gap:8px;padding:0 0 14px!important;margin:0!important;width:100%;grid-column:1/-1;min-width:0}
+.quick-nav>button{flex:0 0 auto;width:auto!important;min-height:40px!important;padding:9px 16px!important;margin:0!important;border:1px solid #d9dce3!important;border-radius:11px!important;background:#fff!important;color:#414754!important;font:600 13px/1.4 -apple-system,BlinkMacSystemFont,"PingFang TC",sans-serif!important;box-shadow:none!important;cursor:pointer;text-align:center!important;white-space:nowrap}
+.quick-nav>button.active,.quick-nav>button[aria-pressed="true"]{background:#3478f6!important;border-color:#3478f6!important;color:#fff!important}
+.quick-nav>button:focus-visible{outline:3px solid #90b6ff;outline-offset:3px}
+.quick-nav>button:hover{filter:brightness(.96)}
+.compact-intro{display:none!important}
+@media(prefers-color-scheme:dark){.quick-nav>button{background:#25252d!important;color:#e8e8ee!important;border-color:#454550!important}.quick-nav>button.active,.quick-nav>button[aria-pressed="true"]{background:#3478f6!important;border-color:#3478f6!important;color:#fff!important}}
+@media(max-width:600px){.quick-nav{gap:6px}.quick-nav>button{padding:8px 11px!important;min-height:38px!important;font-size:12px!important}}
+</style><style>
+/* Shared design system: offline tools v4 */
+:root{color-scheme:light dark;--ui-bg:#f5f6f8;--ui-surface:#ffffff;--ui-soft:#f0f4fc;--ui-ink:#202631;--ui-muted:#77808f;--ui-line:#e0e5ec;--ui-accent:#3478f6;--ui-accent-soft:#eaf1ff;--bg:var(--ui-bg)!important;--bg-deep:var(--ui-bg)!important;--panel:var(--ui-surface)!important;--panel-strong:var(--ui-surface)!important;--ink:var(--ui-ink)!important;--text:var(--ui-ink)!important;--muted:var(--ui-muted)!important;--line:var(--ui-line)!important;--accent:var(--ui-accent)!important;--accent-deep:var(--ui-accent)!important;--soft:var(--ui-accent-soft)!important;--shadow:none!important;--radius:14px!important;--radius-xl:14px!important;--radius-lg:14px!important}
+html[data-unified-ui] body{background:var(--ui-bg)!important;color:var(--ui-ink)!important;font:14px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang TC","Microsoft JhengHei",sans-serif!important;background-image:none!important}
+html[data-tool-surface] body{padding:16px!important}
+html[data-tool-surface] body>.wrap,html[data-tool-surface] body>.page,html[data-tool-surface] body>main{max-width:1320px;width:100%;margin:0 auto!important}
+html[data-unified-ui] :is(.card,.panel,.controls,.sidebar,.viewer,.preview-card,.controls-card,.upload-card,.result-card,.list-card,.meta-card,.viewer-wrap){background:var(--ui-surface)!important;border-color:var(--ui-line)!important;border-radius:14px!important;box-shadow:none!important;backdrop-filter:none!important;color:var(--ui-ink)!important;background-image:none!important}
+html[data-unified-ui] :is(.card,.panel,.controls,.upload-card){border-width:1px;border-style:solid}
+html[data-unified-ui] :is(.note,.notice,.hint,.status,.status-card,.metric,.info-item,.meta-item,.file-item,.item,.stat,.chip,.pill,.badge,.tone-chip,.support-pill,.list-note){background:var(--ui-bg)!important;color:var(--ui-muted)!important;border-color:var(--ui-line)!important;box-shadow:none!important;background-image:none!important;backdrop-filter:none!important}
+html[data-unified-ui] :is(h1,h2,h3,h4,strong){color:var(--ui-ink)}
+html[data-unified-ui] h1{font-size:22px!important;line-height:1.25!important;letter-spacing:-.025em!important}
+html[data-unified-ui] h2{font-size:16px!important;line-height:1.4!important;letter-spacing:-.015em!important}
+html[data-unified-ui] h3{font-size:14px!important;line-height:1.45!important}
+html[data-unified-ui] :is(p,.sub,.subtitle,.lead,.muted,.hint,.small,.tiny,.viewer-description){color:var(--ui-muted)!important}
+html[data-unified-ui] :is(button,.btn,.btn2,.btn3,.action,.primary-button,.ghost-button,.secondary-button,.file-button,.input-button,.download){font-family:inherit!important;font-size:13px!important;font-weight:600!important;line-height:1.4!important;min-height:38px;padding:9px 14px;border:1px solid var(--ui-line)!important;border-radius:10px!important;background:var(--ui-surface)!important;color:var(--ui-ink)!important;box-shadow:none!important;background-image:none!important;transition:background .15s,border-color .15s!important;cursor:pointer}
+html[data-unified-ui] :is(button,.action,.btn,.btn2,.btn3):hover:not(:disabled){background:var(--ui-soft)!important;border-color:var(--ui-accent)!important;transform:none!important;filter:none!important}
+html[data-unified-ui] :is(button.primary,button.primary-button,.btn,.action.primary,.tab.active,.quick-nav>button.active,.tool.active,.download.show,button[aria-pressed="true"]){background:var(--ui-accent)!important;border-color:var(--ui-accent)!important;color:#fff!important}
+html[data-unified-ui] :is(button.danger,button.bad){color:#c84242!important;background:var(--ui-surface)!important}
+html[data-unified-ui] button:disabled{opacity:.42!important;cursor:not-allowed!important}
+html[data-unified-ui] :is(button,input,select,textarea,[role="button"]):focus-visible{outline:3px solid #3478f64d!important;outline-offset:2px}
+html[data-unified-ui] :is(input:not([type="color"]):not([type="range"]):not([type="checkbox"]):not([type="radio"]):not([type="file"]),select,textarea){background:var(--ui-surface)!important;border:1px solid var(--ui-line)!important;border-radius:10px!important;color:var(--ui-ink)!important;box-shadow:none!important;font-family:inherit!important;font-size:13px!important;padding:10px 12px!important}
+html[data-unified-ui] :is(input[type="checkbox"],input[type="radio"],input[type="range"],progress){accent-color:var(--ui-accent)!important}
+html[data-unified-ui] label{color:var(--ui-muted)}
+html[data-unified-ui] textarea{line-height:1.6!important}
+html[data-unified-ui] .quick-nav{gap:8px!important;padding-bottom:16px!important}
+html[data-unified-ui] .quick-nav>button{min-height:38px!important;border-radius:10px!important;background:var(--ui-surface)!important;color:var(--ui-ink)!important;border-color:var(--ui-line)!important}
+html[data-unified-ui] .quick-nav>button.active{background:var(--ui-accent)!important;color:white!important;border-color:var(--ui-accent)!important}
+html[data-unified-ui] .tool-card{background:var(--ui-surface)!important;border-color:var(--ui-line)!important;box-shadow:none!important;border-radius:12px!important}
+html[data-unified-ui] .tool-card.active{background:var(--ui-accent-soft)!important;border-color:var(--ui-accent)!important}
+html[data-unified-ui] .tool-icon{color:var(--ui-accent)!important;background:var(--ui-accent-soft)!important}
+html[data-unified-ui] .viewer-top{background:var(--ui-surface)!important;border-color:var(--ui-line)!important}
+html[data-unified-ui] iframe{background:var(--ui-bg)!important}
+html[data-unified-ui] .ui-upload-square{position:relative!important;box-sizing:border-box!important;display:flex!important;flex:0 0 auto!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:9px!important;width:104px!important;height:104px!important;min-width:104px!important;min-height:104px!important;max-width:104px!important;max-height:104px!important;aspect-ratio:1!important;margin:0!important;padding:10px!important;border:1.5px dashed #b5c7e5!important;border-radius:12px!important;background:var(--ui-soft)!important;color:var(--ui-accent)!important;box-shadow:none!important;text-align:center!important;cursor:pointer!important;overflow:hidden!important;line-height:1.35!important;transform:none!important}
+html[data-unified-ui] .ui-upload-square>*{display:none!important}
+html[data-unified-ui] .ui-upload-square::before{content:''!important;display:block!important;width:26px!important;height:26px!important;flex:0 0 26px!important;background:var(--ui-accent)!important;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 16V3m-5 5 5-5 5 5M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4'/%3E%3C/svg%3E") center/contain no-repeat!important;z-index:1}
+html[data-unified-ui] .ui-upload-square::after{content:attr(data-upload-caption)!important;display:block!important;max-width:100%!important;white-space:normal!important;overflow-wrap:anywhere!important;font:600 12px/1.4 -apple-system,BlinkMacSystemFont,"PingFang TC",sans-serif!important;letter-spacing:0!important;color:var(--ui-accent)!important;z-index:1}
+html[data-unified-ui] .ui-upload-square:is(:hover,:focus-visible,.drag,.dragover){background:var(--ui-accent-soft)!important;border-color:var(--ui-accent)!important}
+html[data-unified-ui] .ui-upload-square[aria-disabled="true"]{opacity:.45;cursor:not-allowed!important}
+html[data-unified-ui] .ui-upload-input,html[data-unified-ui] .ui-upload-redundant{display:none!important}
+html[data-unified-ui] .ui-upload-selection{display:block;color:var(--ui-muted);font-size:11px;line-height:1.5;overflow-wrap:anywhere;margin:7px 0 0;max-width:260px}
+html[data-unified-ui] .ui-upload-selection:empty{display:none}
+html[data-unified-ui] .ui-upload-square>.upload-thumbnail:has(img){display:block!important;position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-height:0!important;border:0!important;border-radius:0!important;background:var(--ui-soft)!important;margin:0!important}
+html[data-unified-ui] .upload-thumbnail img{width:100%!important;height:100%!important;object-fit:cover!important;max-width:none!important;max-height:none!important;opacity:.35}
+html[data-unified-ui] .upload-card{padding:16px!important;gap:12px!important}
+html[data-drawing-ui] body{padding:0!important}
+html[data-drawing-ui] .app{grid-template-rows:minmax(64px,auto) minmax(0,1fr) 34px!important}
+html[data-drawing-ui] header{background:var(--ui-surface)!important;box-shadow:none!important;flex-wrap:wrap;padding:10px!important;gap:8px!important}
+html[data-drawing-ui] header h1{font-size:16px!important}
+html[data-drawing-ui] .ui-upload-square{width:40px!important;height:40px!important;min-width:40px!important;min-height:40px!important;max-width:40px!important;max-height:40px!important;padding:8px!important;gap:0!important;border-radius:10px!important}
+html[data-drawing-ui] .ui-upload-square::before{width:20px!important;height:20px!important;flex-basis:20px!important}
+html[data-drawing-ui] .ui-upload-square::after,html[data-drawing-ui] .ui-upload-selection{display:none!important}
+@media(max-width:600px){html[data-tool-surface] body{padding:12px!important}html[data-unified-ui] .ui-upload-square{width:88px!important;height:88px!important;min-width:88px!important;min-height:88px!important;max-width:88px!important;max-height:88px!important}html[data-unified-ui] .quick-nav{gap:6px!important}html[data-unified-ui] .quick-nav>button{font-size:12px!important;padding:8px 11px!important}html[data-drawing-ui] .ui-upload-square{width:40px!important;height:40px!important;min-width:40px!important;min-height:40px!important;max-width:40px!important;max-height:40px!important}}
+@media(prefers-color-scheme:dark){:root{--ui-bg:#171a20;--ui-surface:#22262f;--ui-soft:#262f3f;--ui-ink:#edf0f6;--ui-muted:#9ba5b5;--ui-line:#363e4c;--ui-accent:#538cff;--ui-accent-soft:#273955}html[data-unified-ui] .ui-upload-square{border-color:#4b6284!important}}
+@media(prefers-reduced-motion:reduce){html[data-unified-ui] *{transition:none!important;scroll-behavior:auto!important}}
+@media(max-width:600px){html[data-drawing-ui] body{padding:0!important}}
+
+</style><script>if(parent!==window)document.documentElement.setAttribute("data-embedded-tool","true");</script><style>
+html,html[data-unified-ui]{--ui-bg:#fff;--ui-surface:#fff;--ui-soft:#f7f8fb;--ui-ink:#202530;--ui-muted:#79818f;--ui-line:#e6e9ef;--ui-accent:#3478f6;--ui-accent-soft:#edf3ff}
+html body,html[data-tool-surface] body{height:auto!important;min-height:0!important;padding:22px!important;background:var(--ui-surface)!important;background-image:none!important}
+body>.wrap,body>.page,body>main{min-height:0!important;max-width:none!important;margin:0!important}
+html[data-embedded-tool] body>.wrap>.top,html[data-embedded-tool] body>.wrap>.title,html[data-embedded-tool] body>main>.hero,html[data-embedded-tool] h1{display:none!important}
+:where(.card,.panel,.controls,.preview-card,.result-card){box-shadow:none!important}
+@media(max-width:620px){html body,html[data-tool-surface] body{padding:16px!important}}
+@media(prefers-color-scheme:dark){html,html[data-unified-ui]{--ui-bg:#202329;--ui-surface:#202329;--ui-soft:#262c36;--ui-ink:#e9edf4;--ui-muted:#929cab;--ui-line:#303640;--ui-accent:#7ea8ff;--ui-accent-soft:#283449}}
+</style><style>.quick-nav{display:none!important}</style><style>input,select{font-size:16px!important}video,img{max-width:100%}button,a[download]{min-height:44px}</style></head>
+<body>
+  <main class="shell">
+    <section class="hero">
+      <div class="eyebrow">Local only · Browser GIF Maker</div>
+      <h1>Video to GIF</h1>
+      <p class="lead">
+        全部處理都在你的瀏覽器本地完成，不會上傳文件。適合把短視頻、錄屏片段或動畫片段快速轉成可下載的
+        <strong>GIF</strong>。
+      </p>
+    </section>
+
+    <section class="grid">
+      <div class="card preview-card">
+        <div class="upload">
+          <label class="file-picker">
+            選擇視頻文件
+            <input id="videoInput" type="file" accept="video/*,.mp4,.webm,.mov,.m4v,.avi,.mkv,.ogv,.venc,application/octet-stream,*/*">
+          </label>
+          <p class="hint">推薦先裁成短片段再導出，GIF 文件會更小，轉換速度也更快。</p>
+        </div>
+
+        <div class="stage">
+          <video id="videoPreview" controls playsinline preload="auto" hidden></video>
+          <img id="gifPreview" alt="導出的 GIF Preview" hidden>
+          <div id="emptyState" class="empty-state">
+            上傳一個視頻後，右側可以設置開始時間、結束時間、輸出寬度和 FPS。
+          </div>
+        </div>
+      </div>
+
+      <div class="card controls-card">
+        <h2 class="section-title">Output Settings</h2>
+        <div class="form">
+          <div class="row">
+            <div class="field">
+              <label for="startTime">開始時間（秒）</label>
+              <input id="startTime" type="number" min="0" step="0.1" value="0">
+            </div>
+            <div class="field">
+              <label for="endTime">結束時間（秒）</label>
+              <input id="endTime" type="number" min="0" step="0.1" value="0">
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="field">
+              <label for="targetWidth">輸出寬度（像素）</label>
+              <input id="targetWidth" type="number" min="120" max="960" step="10" value="320">
+            </div>
+            <div class="field">
+              <label for="fps">幀率 FPS</label>
+              <input id="fps" type="number" min="1" max="20" step="1" value="10">
+            </div>
+          </div>
+        </div>
+
+        <div class="meta" id="metaBox">
+          <div>視頻時長：等待文件載入</div>
+          <div>原始尺寸：等待文件載入</div>
+          <div>輸出幀數：等待設置</div>
+        </div>
+
+        <div class="actions">
+          <button id="previewRangeBtn" type="button" disabled>跳到開始時間</button>
+          <button id="generateBtn" type="button" disabled>開始生成 GIF</button>
+          <a id="downloadLink" class="download-link" hidden download="converted.gif">下載 GIF</a>
+        </div>
+
+        <div class="status-box">
+          <div class="status-line">
+            <span id="statusText">等待上傳視頻</span>
+            <span id="progressText">0%</span>
+          </div>
+          <div class="progress">
+            <div id="progressBar" class="progress-bar"></div>
+          </div>
+          <p class="small-note" id="resultInfo">建議先用 3 到 8 秒的片段測試，再提高寬度或 FPS。</p>
+        </div>
+
+        <div class="result-block">
+          <img id="resultImage" alt="GIF 結果Preview" hidden>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const elements = {
+      videoInput: document.getElementById("videoInput"),
+      videoPreview: document.getElementById("videoPreview"),
+      gifPreview: document.getElementById("gifPreview"),
+      emptyState: document.getElementById("emptyState"),
+      startTime: document.getElementById("startTime"),
+      endTime: document.getElementById("endTime"),
+      targetWidth: document.getElementById("targetWidth"),
+      fps: document.getElementById("fps"),
+      metaBox: document.getElementById("metaBox"),
+      previewRangeBtn: document.getElementById("previewRangeBtn"),
+      generateBtn: document.getElementById("generateBtn"),
+      downloadLink: document.getElementById("downloadLink"),
+      statusText: document.getElementById("statusText"),
+      progressText: document.getElementById("progressText"),
+      progressBar: document.getElementById("progressBar"),
+      resultInfo: document.getElementById("resultInfo"),
+      resultImage: document.getElementById("resultImage")
+    };
+
+    let sourceUrl = "";
+    let gifUrl = "";
+    let isGenerating = false;
+
+    class GifEncoderAdaptive {
+      constructor(width, height, palette, options = {}) {
+        this.width = width;
+        this.height = height;
+        this.palette = palette;
+        this.loop = options.loop ?? 0;
+        this.defaultDelay = options.delay ?? 8;
+        this.bytes = [];
+        this.indexCache = new Map();
+      }
+
+      writeByte(value) {
+        this.bytes.push(value & 0xFF);
+      }
+
+      writeShort(value) {
+        this.writeByte(value);
+        this.writeByte(value >> 8);
+      }
+
+      writeText(text) {
+        for (const char of text) {
+          this.writeByte(char.charCodeAt(0));
+        }
+      }
+
+      start() {
+        this.writeText("GIF89a");
+        this.writeShort(this.width);
+        this.writeShort(this.height);
+        this.writeByte(0xF7);
+        this.writeByte(0x00);
+        this.writeByte(0x00);
+
+        const fallback = this.palette[this.palette.length - 1] || [0, 0, 0];
+        for (let index = 0; index < 256; index += 1) {
+          const color = this.palette[index] || fallback;
+          this.writeByte(color[0] || 0);
+          this.writeByte(color[1] || 0);
+          this.writeByte(color[2] || 0);
+        }
+
+        this.writeByte(0x21);
+        this.writeByte(0xFF);
+        this.writeByte(0x0B);
+        this.writeText("NETSCAPE2.0");
+        this.writeByte(0x03);
+        this.writeByte(0x01);
+        this.writeShort(this.loop);
+        this.writeByte(0x00);
+      }
+
+      addFrame(rgbaData, delay = this.defaultDelay) {
+        const indexedPixels = mapPixelsToPalette(rgbaData, this.palette, this.indexCache);
+
+        this.writeByte(0x21);
+        this.writeByte(0xF9);
+        this.writeByte(0x04);
+        this.writeByte(0x00);
+        this.writeShort(delay);
+        this.writeByte(0x00);
+        this.writeByte(0x00);
+
+        this.writeByte(0x2C);
+        this.writeShort(0);
+        this.writeShort(0);
+        this.writeShort(this.width);
+        this.writeShort(this.height);
+        this.writeByte(0x00);
+
+        this.writeByte(0x08);
+        const encoded = lzwEncode(8, indexedPixels);
+        for (let offset = 0; offset < encoded.length; offset += 255) {
+          const blockSize = Math.min(255, encoded.length - offset);
+          this.writeByte(blockSize);
+          for (let i = 0; i < blockSize; i += 1) {
+            this.writeByte(encoded[offset + i]);
+          }
+        }
+        this.writeByte(0x00);
+      }
+
+      finish() {
+        this.writeByte(0x3B);
+        return new Blob([Uint8Array.from(this.bytes)], { type: "image/gif" });
+      }
+    }
+
+    function lzwEncode(minCodeSize, indexedPixels) {
+      const clearCode = 1 << minCodeSize;
+      const endCode = clearCode + 1;
+      const output = [];
+      let nextCode = endCode + 1;
+      let codeSize = minCodeSize + 1;
+      let bitBuffer = 0;
+      let bitCount = 0;
+
+      const writeCode = (code) => {
+        bitBuffer |= code << bitCount;
+        bitCount += codeSize;
+
+        while (bitCount >= 8) {
+          output.push(bitBuffer & 0xFF);
+          bitBuffer >>= 8;
+          bitCount -= 8;
+        }
+      };
+
+      writeCode(clearCode);
+      let isFirstLiteral = true;
+
+      for (let i = 0; i < indexedPixels.length; i += 1) {
+        writeCode(indexedPixels[i]);
+
+        if (isFirstLiteral) {
+          isFirstLiteral = false;
+          continue;
+        }
+
+        if (nextCode < 4096) {
+          nextCode += 1;
+          if (nextCode === (1 << codeSize) && codeSize < 12) {
+            codeSize += 1;
+          }
+        }
+      }
+      writeCode(endCode);
+
+      if (bitCount > 0) {
+        output.push(bitBuffer & 0xFF);
+      }
+
+      return new Uint8Array(output);
+    }
+
+    function blendAlpha(r, g, b, alpha) {
+      if (alpha >= 255) return [r, g, b];
+      const ratio = alpha / 255;
+      return [
+        Math.round((r * ratio) + (255 * (1 - ratio))),
+        Math.round((g * ratio) + (255 * (1 - ratio))),
+        Math.round((b * ratio) + (255 * (1 - ratio)))
+      ];
+    }
+
+    function samplePixelsFromFrame(rgbaData, width, height, targetSamples = 700) {
+      const samples = [];
+      const pixelCount = Math.max(1, width * height);
+      const stride = Math.max(1, Math.floor(Math.sqrt(pixelCount / targetSamples)));
+
+      for (let y = 0; y < height; y += stride) {
+        for (let x = 0; x < width; x += stride) {
+          const offset = ((y * width) + x) * 4;
+          const [r, g, b] = blendAlpha(
+            rgbaData[offset],
+            rgbaData[offset + 1],
+            rgbaData[offset + 2],
+            rgbaData[offset + 3]
+          );
+          samples.push([r, g, b]);
+        }
+      }
+
+      return samples;
+    }
+
+    function createColorBox(points) {
+      let minR = 255;
+      let minG = 255;
+      let minB = 255;
+      let maxR = 0;
+      let maxG = 0;
+      let maxB = 0;
+
+      for (const [r, g, b] of points) {
+        if (r < minR) minR = r;
+        if (g < minG) minG = g;
+        if (b < minB) minB = b;
+        if (r > maxR) maxR = r;
+        if (g > maxG) maxG = g;
+        if (b > maxB) maxB = b;
+      }
+
+      return { points, minR, minG, minB, maxR, maxG, maxB };
+    }
+
+    function splitColorBox(box) {
+      const rangeR = box.maxR - box.minR;
+      const rangeG = box.maxG - box.minG;
+      const rangeB = box.maxB - box.minB;
+      const channel = rangeR >= rangeG && rangeR >= rangeB
+        ? 0
+        : rangeG >= rangeR && rangeG >= rangeB
+          ? 1
+          : 2;
+      const sorted = [...box.points].sort((a, b) => a[channel] - b[channel]);
+      const middle = Math.floor(sorted.length / 2);
+      if (middle <= 0 || middle >= sorted.length) {
+        return [box];
+      }
+      return [
+        createColorBox(sorted.slice(0, middle)),
+        createColorBox(sorted.slice(middle))
+      ];
+    }
+
+    function boxScore(box) {
+      const range = Math.max(box.maxR - box.minR, box.maxG - box.minG, box.maxB - box.minB);
+      return range * box.points.length;
+    }
+
+    function averageColor(points) {
+      let sumR = 0;
+      let sumG = 0;
+      let sumB = 0;
+      for (const [r, g, b] of points) {
+        sumR += r;
+        sumG += g;
+        sumB += b;
+      }
+      const count = Math.max(1, points.length);
+      return [
+        Math.round(sumR / count),
+        Math.round(sumG / count),
+        Math.round(sumB / count)
+      ];
+    }
+
+    function buildAdaptivePalette(samples, maxColors = 256) {
+      if (!samples.length) {
+        return [[0, 0, 0], [255, 255, 255]];
+      }
+
+      const boxes = [createColorBox(samples)];
+      const limit = Math.min(maxColors, samples.length);
+
+      while (boxes.length < limit) {
+        let splitIndex = -1;
+        let bestScore = -1;
+
+        for (let index = 0; index < boxes.length; index += 1) {
+          const box = boxes[index];
+          if (box.points.length < 2) continue;
+          const score = boxScore(box);
+          if (score > bestScore) {
+            bestScore = score;
+            splitIndex = index;
+          }
+        }
+
+        if (splitIndex < 0) break;
+
+        const [box] = boxes.splice(splitIndex, 1);
+        const parts = splitColorBox(box);
+        if (parts.length < 2) {
+          boxes.push(box);
+          break;
+        }
+        boxes.push(parts[0], parts[1]);
+      }
+
+      return boxes
+        .map((box) => averageColor(box.points))
+        .slice(0, maxColors);
+    }
+
+    function findNearestPaletteIndex(r, g, b, palette, cache) {
+      const key = ((r >> 3) << 10) | ((g >> 3) << 5) | (b >> 3);
+      const cached = cache.get(key);
+      if (cached != null) {
+        return cached;
+      }
+
+      let bestIndex = 0;
+      let bestDistance = Infinity;
+      for (let index = 0; index < palette.length; index += 1) {
+        const color = palette[index];
+        const dr = r - color[0];
+        const dg = g - color[1];
+        const db = b - color[2];
+        const distance = (dr * dr) + (dg * dg) + (db * db);
+        if (distance < bestDistance) {
+          bestDistance = distance;
+          bestIndex = index;
+        }
+      }
+
+      cache.set(key, bestIndex);
+      return bestIndex;
+    }
+
+    function mapPixelsToPalette(rgbaData, palette, cache) {
+      const length = rgbaData.length / 4;
+      const indexed = new Uint8Array(length);
+
+      for (let i = 0, pixelIndex = 0; i < rgbaData.length; i += 4, pixelIndex += 1) {
+        const [r, g, b] = blendAlpha(
+          rgbaData[i],
+          rgbaData[i + 1],
+          rgbaData[i + 2],
+          rgbaData[i + 3]
+        );
+        indexed[pixelIndex] = findNearestPaletteIndex(r, g, b, palette, cache);
+      }
+
+      return indexed;
+    }
+
+    function formatTime(seconds) {
+      if (!Number.isFinite(seconds)) {
+        return "--";
+      }
+
+      const total = Math.max(0, Math.floor(seconds));
+      const minutes = Math.floor(total / 60);
+      const remainingSeconds = total % 60;
+      const tenths = Math.max(0, Math.floor((seconds - total) * 10));
+      return `${String(minutes).padStart(2, "0")}:${String(remainingSeconds).padStart(2, "0")}.${tenths}`;
+    }
+
+    function updateProgress(ratio, text) {
+      const percent = Math.round(Math.max(0, Math.min(1, ratio)) * 100);
+      elements.progressBar.style.width = `${percent}%`;
+      elements.progressText.textContent = `${percent}%`;
+      if (text) {
+        elements.statusText.textContent = text;
+      }
+    }
+
+    function revokeGif() {
+      if (gifUrl) {
+        URL.revokeObjectURL(gifUrl);
+        gifUrl = "";
+      }
+      elements.downloadLink.hidden = true;
+      elements.downloadLink.removeAttribute("href");
+      elements.resultImage.hidden = true;
+      elements.resultImage.removeAttribute("src");
+      elements.gifPreview.hidden = true;
+      elements.gifPreview.removeAttribute("src");
+    }
+
+    function setButtonsDisabled(disabled) {
+      elements.generateBtn.disabled = disabled;
+      elements.previewRangeBtn.disabled = disabled || !sourceUrl;
+      elements.videoInput.disabled = disabled;
+      elements.startTime.disabled = disabled;
+      elements.endTime.disabled = disabled;
+      elements.targetWidth.disabled = disabled;
+      elements.fps.disabled = disabled;
+    }
+
+    function clampSettings() {
+      const duration = elements.videoPreview.duration || 0;
+      const start = Math.min(Math.max(Number.parseFloat(elements.startTime.value) || 0, 0), duration);
+      const end = Math.min(Math.max(Number.parseFloat(elements.endTime.value) || 0, start), duration);
+      const fps = Math.min(20, Math.max(1, Math.round(Number.parseFloat(elements.fps.value) || 10)));
+      const sourceWidth = elements.videoPreview.videoWidth || 320;
+      const width = Math.min(sourceWidth, Math.max(120, Math.round(Number.parseFloat(elements.targetWidth.value) || 320)));
+
+      elements.startTime.value = start.toFixed(1);
+      elements.endTime.value = end.toFixed(1);
+      elements.fps.value = String(fps);
+      elements.targetWidth.value = String(width);
+
+      return { start, end, fps, width, duration };
+    }
+
+    function refreshMeta() {
+      const { start, end, fps, width, duration } = clampSettings();
+      const clipLength = Math.max(0, end - start);
+      const frameCount = Math.max(1, Math.ceil(clipLength * fps));
+      const sourceWidth = elements.videoPreview.videoWidth || 0;
+      const sourceHeight = elements.videoPreview.videoHeight || 0;
+      const outputHeight = sourceWidth > 0
+        ? Math.max(1, Math.round((width / sourceWidth) * sourceHeight))
+        : 0;
+
+      elements.metaBox.innerHTML = `
+        <div>視頻時長：${formatTime(duration)}</div>
+        <div>原始尺寸：${sourceWidth || "--"} × ${sourceHeight || "--"}</div>
+        <div>輸出預估：${width} × ${outputHeight || "--"}，約 ${frameCount} 幀</div>
+      `;
+    }
+
+    async function waitForFrame(video) {
+      if (video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) {
+        await new Promise((resolve, reject) => {
+          const timeoutId = window.setTimeout(() => {
+            cleanup();
+            reject(new Error("等待視頻幀超時，請換短一些的片段或重新選擇文件。"));
+          }, 2000);
+
+          const onReady = () => {
+            cleanup();
+            resolve();
+          };
+
+          const onError = () => {
+            cleanup();
+            reject(new Error("視頻幀載入失敗"));
+          };
+
+          const cleanup = () => {
+            window.clearTimeout(timeoutId);
+            video.removeEventListener("loadeddata", onReady);
+            video.removeEventListener("canplay", onReady);
+            video.removeEventListener("error", onError);
+          };
+
+          video.addEventListener("loadeddata", onReady, { once: true });
+          video.addEventListener("canplay", onReady, { once: true });
+          video.addEventListener("error", onError, { once: true });
+        });
+      }
+
+      await new Promise((resolve) => {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => resolve());
+        });
+      });
+    }
+
+    async function seekVideo(video, time) {
+      const target = Math.min(
+        Math.max(time, 0),
+        Math.max(0, (video.duration || 0) - 0.001)
+      );
+
+      if (Math.abs(video.currentTime - target) < 0.001) {
+        await waitForFrame(video);
+        return;
+      }
+
+      await new Promise((resolve, reject) => {
+        const onSeeked = () => {
+          cleanup();
+          resolve();
+        };
+        const onError = () => {
+          cleanup();
+          reject(new Error("視頻定位失敗"));
+        };
+        const cleanup = () => {
+          video.removeEventListener("seeked", onSeeked);
+          video.removeEventListener("error", onError);
+        };
+
+        video.addEventListener("seeked", onSeeked, { once: true });
+        video.addEventListener("error", onError, { once: true });
+        video.currentTime = target;
+      });
+
+      await waitForFrame(video);
+    }
+
+    function getRepresentativeFrameIndices(frameCount, limit = 48) {
+      if (frameCount <= limit) {
+        return Array.from({ length: frameCount }, (_, index) => index);
+      }
+      const indices = [];
+      for (let index = 0; index < limit; index += 1) {
+        indices.push(Math.round((index / (limit - 1)) * (frameCount - 1)));
+      }
+      return [...new Set(indices)];
+    }
+
+    async function generateGif() {
+      if (!sourceUrl || isGenerating) {
+        return;
+      }
+
+      const { start, end, fps, width } = clampSettings();
+      const clipLength = Math.max(0, end - start);
+
+      if (clipLength <= 0) {
+        updateProgress(0, "請先設置有效的開始和結束時間");
+        elements.resultInfo.textContent = "結束時間需要大於開始時間。";
+        return;
+      }
+
+      const frameCount = Math.max(1, Math.ceil(clipLength * fps));
+      if (frameCount > 320) {
+        const proceed = window.confirm("這次要導出超過 320 幀，可能較慢且 GIF 很大。是否繼續？");
+        if (!proceed) {
+          return;
+        }
+      }
+
+      revokeGif();
+      isGenerating = true;
+      setButtonsDisabled(true);
+      updateProgress(0.02, "正在分析視頻顏色...");
+      elements.resultInfo.textContent = "會先抽樣建立自適應色盤，再正式輸出 GIF。";
+
+      const video = elements.videoPreview;
+      const height = Math.max(1, Math.round((width / video.videoWidth) * video.videoHeight));
+      if (width * height > 1000000 || width * height * frameCount > 90000000) {
+        isGenerating = false; setButtonsDisabled(false);
+        updateProgress(0, "請縮短片段、降低幀率或縮小寬度。");
+        return;
+      }
+      const delay = Math.max(2, Math.round(100 / fps));
+
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
+
+      if (!ctx) {
+        isGenerating = false;
+        setButtonsDisabled(false);
+        updateProgress(0, "瀏覽器不支持畫布處理");
+        return;
+      }
+
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
+
+      try {
+        video.pause();
+        const sampleIndices = getRepresentativeFrameIndices(frameCount, 48);
+        const paletteSamples = [];
+        const targetSamplesPerFrame = sampleIndices.length > 24 ? 520 : 760;
+
+        for (let sampleIndex = 0; sampleIndex < sampleIndices.length; sampleIndex += 1) {
+          const frameIndex = sampleIndices[sampleIndex];
+          const currentTime = Math.min(start + (frameIndex / fps), Math.max(start, end - 0.001));
+          await seekVideo(video, currentTime);
+          ctx.drawImage(video, 0, 0, width, height);
+          const frame = ctx.getImageData(0, 0, width, height);
+          paletteSamples.push(...samplePixelsFromFrame(frame.data, width, height, targetSamplesPerFrame));
+
+          updateProgress(
+            0.45 * ((sampleIndex + 1) / sampleIndices.length),
+            `正在建立色盤：抽樣 ${sampleIndex + 1} / ${sampleIndices.length} 個代表畫面`
+          );
+
+          if (sampleIndex % 4 === 0) {
+            await new Promise((resolve) => setTimeout(resolve, 0));
+          }
+        }
+
+        const palette = buildAdaptivePalette(paletteSamples, 256);
+        const encoder = new GifEncoderAdaptive(width, height, palette, { loop: 0, delay });
+        encoder.start();
+
+        updateProgress(0.5, `已建立 ${palette.length} 色自適應色盤，開始編碼 GIF...`);
+
+        for (let i = 0; i < frameCount; i += 1) {
+          const currentTime = Math.min(start + (i / fps), Math.max(start, end - 0.001));
+          await seekVideo(video, currentTime);
+          ctx.drawImage(video, 0, 0, width, height);
+
+          const frame = ctx.getImageData(0, 0, width, height);
+          encoder.addFrame(frame.data);
+
+          updateProgress(
+            0.5 + (0.5 * ((i + 1) / frameCount)),
+            `正在生成 GIF：第 ${i + 1} / ${frameCount} 幀`
+          );
+
+          if (i % 4 === 0) {
+            await new Promise((resolve) => setTimeout(resolve, 0));
+          }
+        }
+
+        const blob = encoder.finish();
+        gifUrl = URL.createObjectURL(blob);
+
+        elements.resultImage.src = gifUrl;
+        elements.resultImage.hidden = false;
+        elements.gifPreview.src = gifUrl;
+        elements.gifPreview.hidden = false;
+        video.hidden = true;
+
+        elements.downloadLink.href = gifUrl;
+        elements.downloadLink.hidden = false;
+
+        elements.resultInfo.textContent = `生成完成，使用 ${palette.length} 色自適應色盤，文件大小約 ${(blob.size / 1024 / 1024).toFixed(2)} MB。`;
+        updateProgress(1, "GIF 已生成，可以Preview和下載");
+      } catch (error) {
+        console.error(error);
+        updateProgress(0, "生成失敗");
+        elements.resultInfo.textContent = error instanceof Error ? error.message : "處理過程出現未知錯誤。";
+      } finally {
+        isGenerating = false;
+        setButtonsDisabled(false);
+      }
+    }
+
+    function resetPreviewToVideo() {
+      if (sourceUrl) {
+        elements.videoPreview.hidden = false;
+        elements.gifPreview.hidden = true;
+      }
+    }
+
+    elements.videoInput.addEventListener("change", async (event) => {
+      const file = event.target.files?.[0];
+      if (!file) {
+        return;
+      }
+
+      try {
+        const sig = new Uint8Array(await file.slice(0, 4).arrayBuffer());
+        const isVenc = sig.length === 4 && sig[0] === 0x56 && sig[1] === 0x45 && sig[2] === 0x4e && sig[3] === 0x43;
+        if (isVenc) {
+          if (sourceUrl) { URL.revokeObjectURL(sourceUrl); sourceUrl = ""; }
+          revokeGif();
+          elements.videoPreview.removeAttribute("src");
+          elements.videoPreview.hidden = true;
+          elements.emptyState.hidden = false;
+          updateProgress(0, "已接收加密視頻（VENC）");
+          elements.resultInfo.textContent = "這是由 Video Encrypt / Convert 產生的 .venc 加密檔，已可選取上傳；請先解密還原成影片，再轉 GIF。";
+          setButtonsDisabled(true);
+          return;
+        }
+      } catch (error) {}
+
+      if (sourceUrl) {
+        URL.revokeObjectURL(sourceUrl);
+      }
+
+      revokeGif();
+      sourceUrl = URL.createObjectURL(file);
+      elements.videoPreview.src = sourceUrl;
+      elements.videoPreview.hidden = false;
+      elements.emptyState.hidden = true;
+      elements.videoPreview.load();
+
+      updateProgress(0, "正在載入視頻...");
+      elements.resultInfo.textContent = "文件已選擇，等待解析視頻信息。";
+    });
+
+    elements.videoPreview.addEventListener("loadedmetadata", () => {
+      const video = elements.videoPreview;
+      const duration = Number.isFinite(video.duration) ? video.duration : 0;
+      const suggestedWidth = Math.min(480, video.videoWidth || 320);
+
+      elements.startTime.value = "0.0";
+      elements.endTime.value = duration.toFixed(1);
+      elements.startTime.max = duration.toFixed(1);
+      elements.endTime.max = duration.toFixed(1);
+      elements.targetWidth.value = String(suggestedWidth);
+
+      refreshMeta();
+      setButtonsDisabled(false);
+      updateProgress(0, "可以開始設置輸出範圍");
+      elements.resultInfo.textContent = "先調整開始/結束時間，再點生成。";
+    });
+
+    for (const input of [elements.startTime, elements.endTime, elements.targetWidth, elements.fps]) {
+      input.addEventListener("input", () => {
+        if (!sourceUrl) {
+          return;
+        }
+        refreshMeta();
+        resetPreviewToVideo();
+      });
+    }
+
+    elements.previewRangeBtn.addEventListener("click", async () => {
+      if (!sourceUrl || isGenerating) {
+        return;
+      }
+
+      const { start } = clampSettings();
+      resetPreviewToVideo();
+      updateProgress(0, "正在定位到開始時間...");
+
+      try {
+        await seekVideo(elements.videoPreview, start);
+        updateProgress(0, `已定位到 ${formatTime(start)}`);
+      } catch (error) {
+        updateProgress(0, "定位失敗");
+        elements.resultInfo.textContent = error instanceof Error ? error.message : "無法跳轉到指定時間。";
+      }
+    });
+
+    elements.generateBtn.addEventListener("click", generateGif);
+
+    window.addEventListener("beforeunload", () => {
+      if (sourceUrl) {
+        URL.revokeObjectURL(sourceUrl);
+      }
+      revokeGif();
+    });
+  </script>
+<script>
+(()=>{
+
+const mount=document.querySelector('.wrap,.page,main,.app')||document.body;
+function nav(items,onSelect){const row=document.createElement('nav');row.className='quick-nav';row.setAttribute('aria-label','Tool Navigation');items.forEach(([label,value],i)=>{const b=document.createElement('button');b.type='button';b.textContent=label;b.dataset.value=value;b.addEventListener('click',()=>{onSelect(value);mark(row,value)});row.append(b)});mount.prepend(row);return row}
+function mark(row,value){row.querySelectorAll('button').forEach(b=>{const active=b.dataset.value===value;b.classList.toggle('active',active);b.setAttribute('aria-pressed',String(active))})}
+function hide(selector){document.querySelectorAll(selector).forEach(el=>el.classList.add('compact-intro'))}
+function steps(items){return nav(items,value=>{const target=document.querySelector(value);if(target){target.scrollIntoView({behavior:'smooth',block:'start'});if(target.matches('input,select,textarea'))target.focus({preventScroll:true})}})}
+hide('.hero');steps([['Upload','#videoInput'],['Trim','.controls-card'],['Convert to GIF','#generateBtn']]);
+})();
+</script><script>
+(()=>{
+const ids={extractFile:'extractDrop',convertFile:'convertDrop',encFile:'encDrop',decFile:'decDrop',b64File:'b64Drop',convFile:'convDrop',packFilesInput:'packDropzone',archiveInput:'unpackDropzone',fileInput:'dropzone',imageInput:'dropzone',files:'drop'};
+const captions={extractFile:'Upload Video',convertFile:'Upload Audio',packFilesInput:'加入檔案',archiveInput:'上傳封包',folders:'選擇資料夾',img1:'Upload Preview Image',img2:'Upload Hidden Image',importFile:'匯入圖片 / 專案',decFile:'上傳加密檔'};
+const all=Array.from(document.querySelectorAll('input[type="file"]'));
+for(const input of all){
+ let square=ids[input.id]&&document.getElementById(ids[input.id]);
+ let reused=Boolean(square);
+ const labels=Array.from(document.querySelectorAll('label')).filter(label=>label.htmlFor===input.id||label.contains(input));
+ if(!square){square=labels.find(l=>l.matches('.file-picker,.file-button,.input-button'));reused=false}
+ if(!square){square=document.createElement('button');square.type='button';input.before(square)}
+ const accept=input.accept||'';const caption=captions[input.id]||(accept.includes('image')?'Upload Image':accept.includes('video')?'Upload Video':accept.includes('audio')?'Upload Audio':accept.includes('model')?'Upload Model':'Upload File');
+ square.classList.add('ui-upload-square');square.dataset.uploadCaption=caption;square.setAttribute('aria-label',caption+'，點擊選擇或拖入檔案');square.title=caption+' · 點擊選擇或拖放';
+ if(square.tagName!=='BUTTON'){square.setAttribute('role','button');square.tabIndex=0}
+ input.classList.add('ui-upload-input');
+ for(const label of labels){if(label!==square&&!label.contains(square))label.classList.add('ui-upload-redundant')}
+ if(input.id==='files')document.getElementById('pick')?.classList.add('ui-upload-redundant');
+ if(input.id==='folders')document.getElementById('folder')?.classList.add('ui-upload-redundant');
+ const status=document.createElement('span');status.className='ui-upload-selection';status.setAttribute('aria-live','polite');square.after(status);
+ function display(files){const names=Array.from(files||[]).map(f=>f.name);status.textContent=names.length>1?`${names.length} 個檔案 · ${names[0]}`:names[0]||'';status.title=names.join('\n')}
+ function sync(){square.setAttribute('aria-disabled',String(input.disabled));display(input.files)}
+ square.addEventListener('click',event=>{if(event.target===input){event.stopPropagation();return}event.preventDefault();event.stopImmediatePropagation();if(!input.disabled)input.click()},true);
+ square.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopImmediatePropagation();if(!input.disabled)input.click()}},true);
+ input.addEventListener('change',sync);input.addEventListener('cancel',sync);
+ new MutationObserver(sync).observe(input,{attributes:true,attributeFilter:['disabled']});
+ square.addEventListener('dragover',event=>{event.preventDefault();square.classList.add('dragover')});
+ square.addEventListener('dragleave',()=>square.classList.remove('dragover'));
+ square.addEventListener('drop',event=>{event.preventDefault();square.classList.remove('dragover');if(input.disabled)return;const files=event.dataTransfer?.files;if(!files?.length)return;if(!reused){const dt=new DataTransfer();for(const file of Array.from(files).slice(0,input.multiple?files.length:1))dt.items.add(file);input.files=dt.files;input.dispatchEvent(new Event('change',{bubbles:true}))}display(input.multiple?files:[files[0]])});
+ if(input.id==='img1'||input.id==='img2'){const preview=document.getElementById(input.id==='img1'?'preview1Box':'preview2Box');if(preview){preview.classList.add('upload-thumbnail');square.append(preview)}}
+ sync();
+}
+})();
+
+</script><script>
+(()=>{if(parent===window||!window.ResizeObserver)return;let pending=false;function resize(){if(pending)return;pending=true;requestAnimationFrame(()=>{pending=false;parent.postMessage({type:'offline-tool-resize',height:Math.ceil(document.body.getBoundingClientRect().height)+2},'*');});}new ResizeObserver(resize).observe(document.body);window.addEventListener('load',resize);resize();})();
+</script><script>
+
+async function shareToolFile(blob, name) {
+  const bridge = window.webkit?.messageHandlers?.toolExport;
+  if (!bridge) {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url; link.download = name;
+    document.body.append(link); link.click(); link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+    return;
+  }
+  if (blob.size > 32 * 1024 * 1024) throw new Error('檔案超過 32 MB，請減少輸出大小。');
+  const data = await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result).split(',')[1]);
+    reader.onerror = () => reject(new Error('讀取輸出檔案失敗'));
+    reader.readAsDataURL(blob);
+  });
+  await bridge.postMessage({name, data});
+}
+
+document.addEventListener('click', async event => {
+  const link = event.target.closest('a[download]');
+  if (!link || !window.webkit?.messageHandlers?.toolExport || !link.href.startsWith('blob:')) return;
+  event.preventDefault();
+  if (link.dataset.sharing) return;
+  link.dataset.sharing = '1';
+  try { await shareToolFile(await (await fetch(link.href)).blob(), 'Video.gif'); }
+  catch (error) { alert(error.message || String(error)); }
+  finally { delete link.dataset.sharing; }
+});
+
+</script></body>
+</html>
