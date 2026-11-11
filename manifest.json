@@ -12,8 +12,8 @@
       "id": "mobile-invoice",
       "title": "手機開票",
       "summary": "匯入 Excel、PDF 或圖片，編輯明細並匯出 XLSX。",
-      "version": "1.0.3",
-      "sha256": "f55efc443fc5c9cbb8b0ce7d13fa86bbe8b2787f9ea4bfe8f8f29b9b6c7bcc4a"
+      "version": "1.0.4",
+      "sha256": "48252fa0b52883a2a642aefa6dbc62462f24eba45ea8c34abd9bf190031c2df5"
     }
   ]
 }

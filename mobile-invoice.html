@@ -124,6 +124,7 @@ dialog h2 { margin: 0 0 14px; font-size: 18px }
   font-variant-numeric: tabular-nums; touch-action: pan-x;
 }
 @media (orientation: landscape) {
+  html[data-invoice-layout="rails"] { --rail-top: max(16px, env(safe-area-inset-top)) }
   html[data-invoice-layout="rails"] .invoice-toolbar {
     position: fixed; inset: 0; height: 0; padding: 0; border: 0;
     display: block; background: none; pointer-events: none;
@@ -138,15 +139,21 @@ dialog h2 { margin: 0 0 14px; font-size: 18px }
   html[data-invoice-layout="rails"] .invoice-toolbar .bar-button {
     position: fixed; width: 46px; pointer-events: auto;
   }
-  html[data-invoice-layout="rails"] #exitInvoiceBtn { left: 4px; top: 4px }
-  html[data-invoice-layout="rails"] #invoiceClearBtn { left: 4px; top: 52px }
-  html[data-invoice-layout="rails"] #convertBtn { right: 4px; top: 4px }
-  html[data-invoice-layout="rails"] #addRowBtn { right: 4px; top: 52px }
-  html[data-invoice-layout="rails"] #invoiceUploadBtn { right: 4px; top: 100px }
+  html[data-invoice-layout="rails"] #exitInvoiceBtn { left: 4px; top: var(--rail-top) }
+  html[data-invoice-layout="rails"] #invoiceClearBtn { left: 4px; top: calc(var(--rail-top) + 48px) }
+  html[data-invoice-layout="rails"] #convertBtn { right: 4px; top: var(--rail-top) }
+  html[data-invoice-layout="rails"] #addRowBtn { right: 4px; top: calc(var(--rail-top) + 48px) }
+  html[data-invoice-layout="rails"] #invoiceUploadBtn { right: 4px; top: calc(var(--rail-top) + 96px) }
   html[data-invoice-layout="rails"] #totalSummary { display: none }
   html[data-invoice-layout="rails"] #invoiceAmountButton {
-    display: flex; left: 4px; bottom: max(4px, env(safe-area-inset-bottom)); top: auto;
+    display: flex; right: 4px; left: auto; bottom: auto; top: calc(var(--rail-top) + 144px);
   }
+  html[data-invoice-layout="rails"] #invoiceAmountPopup {
+    left: auto; right: 60px; top: calc(var(--rail-top) + 144px); bottom: auto;
+    width: max-content; max-width: min(320px, calc(100vw - 120px));
+    min-width: min(160px, calc(100vw - 120px)); padding: 10px 12px;
+  }
+  html[data-invoice-layout="rails"] #invoiceAmountPopup .popup-caption { display: none }
   html[data-invoice-layout="rails"] #previewArea { padding: 0 60px max(12px, env(safe-area-inset-bottom)); scroll-margin-top: 0 }
   html[data-invoice-layout="rails"] #status { padding: 6px 60px }
   html[data-invoice-layout="rails"] .landscape-heading { position: static; padding-top: 8px }
