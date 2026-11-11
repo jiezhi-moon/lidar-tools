@@ -111,6 +111,51 @@ dialog h2 { margin: 0 0 14px; font-size: 18px }
     clip-path: inset(50%); white-space: nowrap; margin: 0;
   }
 }
+#invoiceAmountButton { display: none }
+#invoiceAmountPopup {
+  position: fixed; z-index: 50; left: 60px; right: 60px;
+  bottom: max(8px, env(safe-area-inset-bottom)); padding: 14px;
+  border: 1px solid var(--line); border-radius: 10px;
+  background: var(--card); box-shadow: 0 8px 30px #0004;
+}
+#invoiceAmountPopup .popup-caption { display: block; color: var(--muted); font-size: 12px; margin-bottom: 6px }
+#invoicePopupAmount {
+  display: block; overflow-x: auto; white-space: nowrap; font-size: 22px;
+  font-variant-numeric: tabular-nums; touch-action: pan-x;
+}
+@media (orientation: landscape) {
+  html[data-invoice-layout="rails"] .invoice-toolbar {
+    position: fixed; inset: 0; height: 0; padding: 0; border: 0;
+    display: block; background: none; pointer-events: none;
+  }
+  html[data-invoice-layout="rails"] .invoice-toolbar::before,
+  html[data-invoice-layout="rails"] .invoice-toolbar::after {
+    content: ""; position: fixed; top: 0; bottom: 0; width: 54px; z-index: -1;
+    background: var(--card); border-color: var(--line); border-style: solid; border-width: 0;
+  }
+  html[data-invoice-layout="rails"] .invoice-toolbar::before { left: 0; border-right-width: 1px }
+  html[data-invoice-layout="rails"] .invoice-toolbar::after { right: 0; border-left-width: 1px }
+  html[data-invoice-layout="rails"] .invoice-toolbar .bar-button {
+    position: fixed; width: 46px; pointer-events: auto;
+  }
+  html[data-invoice-layout="rails"] #exitInvoiceBtn { left: 4px; top: 4px }
+  html[data-invoice-layout="rails"] #invoiceClearBtn { left: 4px; top: 52px }
+  html[data-invoice-layout="rails"] #convertBtn { right: 4px; top: 4px }
+  html[data-invoice-layout="rails"] #addRowBtn { right: 4px; top: 52px }
+  html[data-invoice-layout="rails"] #invoiceUploadBtn { right: 4px; top: 100px }
+  html[data-invoice-layout="rails"] #totalSummary { display: none }
+  html[data-invoice-layout="rails"] #invoiceAmountButton {
+    display: flex; left: 4px; bottom: max(4px, env(safe-area-inset-bottom)); top: auto;
+  }
+  html[data-invoice-layout="rails"] #previewArea { padding: 0 60px max(12px, env(safe-area-inset-bottom)); scroll-margin-top: 0 }
+  html[data-invoice-layout="rails"] #status { padding: 6px 60px }
+  html[data-invoice-layout="rails"] .landscape-heading { position: static; padding-top: 8px }
+  html[data-invoice-layout="rails"] .landscape-heading .item-fields,
+  html[data-invoice-layout="rails"] .item-row .item-fields {
+    grid-template-columns: minmax(0, 1.45fr) minmax(0, 1.4fr) minmax(0, .65fr)
+                           minmax(0, .65fr) minmax(0, .85fr) minmax(0, 1fr);
+  }
+}
 </style></head><body>
 <header class="invoice-toolbar" aria-label="開票工具列">
   <button id="exitInvoiceBtn" class="bar-button" type="button">
@@ -134,7 +179,14 @@ dialog h2 { margin: 0 0 14px; font-size: 18px }
   <button id="convertBtn" class="bar-button primary" type="button" disabled>
     <svg viewBox="0 0 24 24"><path d="M5 4h9l5 5v11H5zM14 4v5h5m-9 3 4 4m0-4-4 4"/></svg><span>轉換</span>
   </button>
+  <button id="invoiceAmountButton" class="bar-button" type="button" aria-label="顯示總金額" aria-expanded="false" aria-controls="invoiceAmountPopup">
+    <svg viewBox="0 0 24 24"><path d="m6 4 6 7 6-7M12 11v9M6 13h12M6 17h12"/></svg><span>總額</span>
+  </button>
 </header>
+<div id="invoiceAmountPopup" hidden>
+  <span class="popup-caption">總金額</span>
+  <strong id="invoicePopupAmount" aria-live="polite">¥0.00</strong>
+</div>
 <input id="fileInput" type="file" accept=".xls,.xlsx,.xlsm,.pdf,image/*" hidden>
 <input id="invoicePhotoInput" type="file" accept="image/*" hidden>
 <div id="status" role="status" hidden></div>
@@ -827,6 +879,21 @@ async function shareToolFile(blob, name) {
     function prettyMoney(v){return new Intl.NumberFormat("zh-CN",{minimumFractionDigits:2,maximumFractionDigits:2}).format(v)}
     function updateSummary(){
       totalAmountEl.textContent="¥"+prettyMoney(getAmountSummary().sum);
+      el("invoicePopupAmount").textContent=totalAmountEl.textContent;
+    }
+    function updateInvoiceUnit(row, holder){
+      const unit = {"钢绳索具":"条", "吊钩":"只", "光面钢丝绳":"m"}[row.name];
+      if(!unit)return;
+      row.unit=unit;
+      row._unitMissing=false;
+      const input=holder.closest(".item-row")?.querySelector('input[data-key="unit"]');
+      if(input){
+        input.value=unit;
+        const field=input.closest(".item-field");
+        field?.classList.remove("unit-review");
+        const label=field?.querySelector("label");
+        if(label)label.textContent="单位";
+      }
     }
     function attachNameOptions(input,holder,row,afterPick=null,normalize=normalizeItemName){
       const menu=document.createElement("div");
@@ -843,6 +910,7 @@ async function shareToolFile(blob, name) {
         // 保留既有指定的自动品名归类规则，选用与自动识别的名称处理一致。
         const fixed=normalize(name);
         row.name=fixed;input.value=fixed;
+        if(normalize===normalizeItemName)updateInvoiceUnit(row,holder);
         close();if(afterPick)afterPick();else updateSummary();
       }
       function repaint(){
@@ -975,6 +1043,7 @@ async function shareToolFile(blob, name) {
       el("invoicePhotoInput").value="";
       previewBody.replaceChildren();
       previewArea.style.display="none";
+      hideAmountPopup();
       addRowBtn.disabled=false;
       updateSummary();
       syncReadyState();
@@ -1012,6 +1081,30 @@ async function shareToolFile(blob, name) {
       exportDialog.close();
       convertBtn.disabled=true;
       try{if(!parsed||!parsed.dataRows.length)throw new Error("请先导入并确认至少一条明细。");const exportCorrections=applyNameRules(parsed.dataRows);if(exportCorrections)showPreview(parsed);const defaultRate=taxRateValue(el("taxRate").value);if(defaultRate===null)throw new Error("请填写有效的默认税率，例如 0.13 或 13%。");const defaultUnit="",defaultCode="";const wb=XLSX.read(TEMPLATE_B64,{type:"base64",cellStyles:true,cellDates:false}),ws=wb.Sheets[TARGET_SHEET];if(!ws)throw new Error("内置目标模板缺少“1-明细模板”工作表。");deleteWorksheetRow(ws,0);if(wb.Workbook&&wb.Workbook.Views&&wb.Workbook.Views[0])wb.Workbook.Views[0].activeTab=Math.max(0,wb.SheetNames.indexOf(TARGET_SHEET));const incomplete=parsed.dataRows.filter(r=>!safeText(r.name)||!safeText(r.spec)||numeric(r.qty)===null||numeric(r.price)===null||numeric(r.amount)===null);if(incomplete.length)throw new Error(`有 ${incomplete.length} 行名称／规格／数量／单价／金额缺失，请先在预览中修正，再导出。`);const out=parsed.dataRows.map(r=>{let rate=taxRateValue(r.rateRaw);if(rate===null)rate=defaultRate;let policy=r.policy||"";if(typeof r.rateRaw==="string"&&r.rateRaw.trim()==="免税"){rate=0;if(!policy)policy="免税"}const qty=numeric(r.qty),price=numeric(r.price);let amount=numeric(r.amount);if(amount===null&&qty!==null&&price!==null)amount=Math.round(qty*price*100)/100;return [normalizeItemName(r.name),r.code||defaultCode,safeText(r.spec),r.unit||defaultUnit,qty,price,amount,rate,null,policy,null,null,null,null,null,null,null,null,null,null,null,null]});if(!out.length)throw new Error("没有可写入的明细，请检查“名称”列。");XLSX.utils.sheet_add_aoa(ws,out,{origin:{r:4,c:0}});for(let i=0;i<out.length;i++){const ref=XLSX.utils.encode_cell({r:i+4,c:1});if(ws[ref]&&ws[ref].v!==null&&ws[ref].v!==""){ws[ref].t="s";ws[ref].v=String(ws[ref].v);ws[ref].z="@"}}const bytes=XLSX.write(wb,{type:"array",bookType:"xlsx",compression:true,cellStyles:true});await shareToolFile(new Blob([bytes],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}),OUTPUT_NAME);status(`转换完成：第 3、4 行已留空，明細從第 5 行開始；已生成 ${out.length} 条明细，总金额 ¥${prettyMoney(getAmountSummary().sum)}，可儲存或分享。`,"ok")}catch(e){status(e.message||String(e),"err")}finally{syncReadyState()}});
+
+    const amountPopup=el("invoiceAmountPopup");
+    const amountButton=el("invoiceAmountButton");
+    function hideAmountPopup(){
+      amountPopup.hidden=true;
+      amountButton.setAttribute("aria-expanded","false");
+    }
+    amountButton.addEventListener("click",()=>{
+      const show=amountPopup.hidden;
+      amountPopup.hidden=!show;
+      amountButton.setAttribute("aria-expanded",String(show));
+    });
+    document.addEventListener("pointerdown",event=>{
+      if(!amountPopup.contains(event.target)&&!amountButton.contains(event.target))hideAmountPopup();
+    },true);
+    document.addEventListener("keydown",event=>{
+      if(event.key==="Escape")hideAmountPopup();
+    });
+    window.setInvoiceLandscapeLayout=value=>{
+      document.documentElement.dataset.invoiceLayout=value==="rails"?"rails":"toolbar";
+      hideAmountPopup();
+    };
+    window.setInvoiceLandscapeLayout(window.mobileInvoiceLandscapeLayout||"toolbar");
+    matchMedia("(orientation: landscape)").addEventListener("change",hideAmountPopup);
 
     document.addEventListener('dragover',event=>{if(event.dataTransfer?.types.includes('Files'))event.preventDefault()});
     document.addEventListener('drop',event=>{const file=event.dataTransfer?.files?.[0];if(file){event.preventDefault();selectFile(file)}});
