@@ -14,6 +14,20 @@
       "summary": "匯入 Excel、PDF 或圖片，編輯明細並匯出 XLSX。",
       "version": "1.0.4",
       "sha256": "48252fa0b52883a2a642aefa6dbc62462f24eba45ea8c34abd9bf190031c2df5"
+    },
+    {
+      "id": "drawing-board",
+      "title": "Drawing Board",
+      "summary": "Draw, import images, pan and zoom, and save PNG images or editable projects.",
+      "version": "1.0.0",
+      "sha256": "0cc1108f3c86def20e7c6be923030e5b952e62f9cfd708698c4e6ffdb07251a6"
+    },
+    {
+      "id": "panorama-video",
+      "title": "360° Video Viewer",
+      "summary": "Play local equirectangular videos. Drag to look around and pinch to zoom.",
+      "version": "1.0.0",
+      "sha256": "eb736b61c25ff862acab20d5c6dc199ab00225e366cf68afedcc71b99fad5edf"
     }
   ]
 }
