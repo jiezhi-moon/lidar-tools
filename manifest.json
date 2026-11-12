@@ -28,6 +28,20 @@
       "summary": "Play local equirectangular videos. Drag to look around and pinch to zoom.",
       "version": "1.0.0",
       "sha256": "eb736b61c25ff862acab20d5c6dc199ab00225e366cf68afedcc71b99fad5edf"
+    },
+    {
+      "id": "music-player",
+      "title": "Music Player",
+      "summary": "MP3, M4A and Linear PCM audio, cover artwork, background playback and audio mixing.",
+      "version": "1.0.0",
+      "sha256": "9bb7e14d28428a457b49d8a3f38b29767c0833284c5f1bc5be37c6abde1fe660"
+    },
+    {
+      "id": "audio-editor",
+      "title": "Audio Editor",
+      "summary": "Trim, fade, adjust volume, normalize, reverse, mix to mono and export WAV or M4A.",
+      "version": "1.0.0",
+      "sha256": "6c03a15f6e811e8e732ee0cf75c794f8cc05fc312691a748a449c327e95a9bea"
     }
   ]
 }
