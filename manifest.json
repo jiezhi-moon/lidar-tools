@@ -49,6 +49,13 @@
       "summary": "Add multiple videos, pinch and pan the timeline, split, reorder and delete clips; preview and export your edits.",
       "version": "1.1.0",
       "sha256": "78cb82754496b5251f670a3446714a30608ad8d84937b8e252afd4b018dde17e"
+    },
+    {
+      "id": "3d-editor",
+      "title": "3D Editor",
+      "summary": "Edit and convert models; orbit, two-finger pan/pinch, undo, object tools and USDZ, GLB, FBX, OBJ, PLY, STL or SCN export.",
+      "version": "1.0.0",
+      "sha256": "51bfec8dbf8b1ab0322b36c7e949483b86b082d3300bc9955299d0abcf6424e3"
     }
   ]
 }
