@@ -39,9 +39,16 @@
     {
       "id": "audio-editor",
       "title": "Audio Editor",
-      "summary": "Trim, fade, adjust volume, normalize, reverse, mix to mono and export WAV or M4A.",
+      "summary": "Drag the waveform to seek and trim, preview edits and export WAV, AAC, MP3, AIFF, CAF or Apple Lossless.",
+      "version": "1.1.0",
+      "sha256": "4b91504048194350b6f5e7d41b8ae4529ca1c7e98cdb644e819ac8cbc8481f80"
+    },
+    {
+      "id": "video-editor",
+      "title": "Video Editor",
+      "summary": "Scrub and trim video, change speed, rotate, mirror, adjust audio and export MP4, MOV or M4V.",
       "version": "1.0.0",
-      "sha256": "6c03a15f6e811e8e732ee0cf75c794f8cc05fc312691a748a449c327e95a9bea"
+      "sha256": "3cc46d88cedbd91609d8a60bc0f3a92f6a5c9d641e00446e966cfefc7709ee44"
     }
   ]
 }
