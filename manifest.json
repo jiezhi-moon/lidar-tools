@@ -18,9 +18,9 @@
     {
       "id": "drawing-board",
       "title": "Drawing Board",
-      "summary": "Draw, import images, pan and zoom, and save PNG images or editable projects.",
-      "version": "1.0.0",
-      "sha256": "0cc1108f3c86def20e7c6be923030e5b952e62f9cfd708698c4e6ffdb07251a6"
+      "summary": "A redesigned canvas with drawing tools, shapes, editable text, paper styles, image placement and PNG/project export.",
+      "version": "2.0.0",
+      "sha256": "64b0919e6574dc3c23270ec2d3a19b2babdb2e848ba6cc6aa500e9c8907c290f"
     },
     {
       "id": "panorama-video",
@@ -32,23 +32,23 @@
     {
       "id": "music-player",
       "title": "Music Player",
-      "summary": "MP3, M4A and Linear PCM audio, cover artwork, background playback and audio mixing.",
-      "version": "1.0.0",
-      "sha256": "9bb7e14d28428a457b49d8a3f38b29767c0833284c5f1bc5be37c6abde1fe660"
+      "summary": "Separate player and playlists, custom playlist names and covers, song menus and playlist playback queues.",
+      "version": "1.1.0",
+      "sha256": "ce2042b5130214974f3efeb2969ee1675d15ed99e342b493e393c97e9c49ec92"
     },
     {
       "id": "audio-editor",
       "title": "Audio Editor",
-      "summary": "Drag the waveform to seek and trim, preview edits and export WAV, AAC, MP3, AIFF, CAF or Apple Lossless.",
-      "version": "1.1.0",
-      "sha256": "4b91504048194350b6f5e7d41b8ae4529ca1c7e98cdb644e819ac8cbc8481f80"
+      "summary": "Pinch to zoom, pan and follow playback. Split, reorder or delete clips with undo, then export in six audio formats.",
+      "version": "1.2.0",
+      "sha256": "53d0942d4d10d05849b5e98536084c78168510a7b815ca306318294fa8491957"
     },
     {
       "id": "video-editor",
       "title": "Video Editor",
-      "summary": "Scrub and trim video, change speed, rotate, mirror, adjust audio and export MP4, MOV or M4V.",
-      "version": "1.0.0",
-      "sha256": "3cc46d88cedbd91609d8a60bc0f3a92f6a5c9d641e00446e966cfefc7709ee44"
+      "summary": "Add multiple videos, pinch and pan the timeline, split, reorder and delete clips; preview and export your edits.",
+      "version": "1.1.0",
+      "sha256": "78cb82754496b5251f670a3446714a30608ad8d84937b8e252afd4b018dde17e"
     }
   ]
 }
