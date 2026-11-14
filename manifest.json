@@ -32,23 +32,23 @@
     {
       "id": "music-player",
       "title": "Music Player",
-      "summary": "Separate player and playlists, custom playlist names and covers, song menus and playlist playback queues.",
-      "version": "1.1.0",
-      "sha256": "ce2042b5130214974f3efeb2969ee1675d15ed99e342b493e393c97e9c49ec92"
+      "summary": "Play songs and playlists; export all songs or back up and restore songs, names, covers and playlists without re-encoding.",
+      "version": "1.2.0",
+      "sha256": "1442f861bf349d84afc2c7427aa53b80089d5404690e49d8ad7d725d2de0c448"
     },
     {
       "id": "audio-editor",
       "title": "Audio Editor",
       "summary": "Pinch to zoom, pan and follow playback. Split, reorder or delete clips with undo, then export in six audio formats.",
-      "version": "1.2.0",
-      "sha256": "53d0942d4d10d05849b5e98536084c78168510a7b815ca306318294fa8491957"
+      "version": "1.2.1",
+      "sha256": "0de4fca3c1cb27762ba0611111055d85ee5c987e3609489a82641869214c1b99"
     },
     {
       "id": "video-editor",
       "title": "Video Editor",
       "summary": "Add multiple videos, pinch and pan the timeline, split, reorder and delete clips; preview and export your edits.",
-      "version": "1.1.0",
-      "sha256": "78cb82754496b5251f670a3446714a30608ad8d84937b8e252afd4b018dde17e"
+      "version": "1.1.1",
+      "sha256": "07264d40b5189ad25ddd6c9c74e3c24eb73761f8f123f82440350beed24c77a2"
     },
     {
       "id": "3d-editor",
