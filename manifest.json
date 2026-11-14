@@ -39,9 +39,9 @@
     {
       "id": "audio-editor",
       "title": "Audio Editor",
-      "summary": "Sample-accurate clip editing with 64-bit PCM WAV/CAF export; other conversions require confirmation.",
-      "version": "1.2.2",
-      "sha256": "f70fe46c72953e1ba71fdb2023236357eb0114b1aeff4b46bd38522257f3ca21"
+      "summary": "Keep source PCM precision for cuts, copy unchanged files directly, show export size and confirm larger outputs.",
+      "version": "1.2.3",
+      "sha256": "e8fdacaa4a5054cf09ad4261e35ab50d1b6abd230d172ace862866b63f9fdd70"
     },
     {
       "id": "video-editor",
