@@ -56,6 +56,20 @@
       "summary": "Edit and convert models; orbit, two-finger pan/pinch, undo, object tools and USDZ, GLB, FBX, OBJ, PLY, STL or SCN export.",
       "version": "1.0.0",
       "sha256": "51bfec8dbf8b1ab0322b36c7e949483b86b082d3300bc9955299d0abcf6424e3"
+    },
+    {
+      "id": "shadowrocket-config",
+      "title": "Shadowrocket Config Studio",
+      "summary": "Build and edit Shadowrocket configurations, save drafts, copy settings and export .conf files.",
+      "version": "1.0.0",
+      "sha256": "b91b713a2c8997235eff22a7935b28a22a11872e3a8110cafb3bc360b585cc3a"
+    },
+    {
+      "id": "luma-sort",
+      "title": "Luma Sort",
+      "summary": "Relaxing color-sorting bottle puzzles with hints, undo and saved progress.",
+      "version": "1.0.0",
+      "sha256": "073f40f507d94d4f29db2f69d2cc76f79e0c8284f3ab964536f563299570126a"
     }
   ]
 }
