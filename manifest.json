@@ -70,6 +70,48 @@
       "summary": "Relaxing color-sorting bottle puzzles with hints, undo and saved progress.",
       "version": "1.0.0",
       "sha256": "073f40f507d94d4f29db2f69d2cc76f79e0c8284f3ab964536f563299570126a"
+    },
+    {
+      "id": "video-compressor",
+      "title": "Video Compression",
+      "summary": "Lossy H.264/AAC compression in the original MP4, MOV or M4V container. Requires updated Leisure Box.",
+      "version": "1.0.0",
+      "sha256": "cfa0c631861e78bb0078f978a9766f08b371edbd6a185952850b5c34c8bd2f62"
+    },
+    {
+      "id": "audio-compressor",
+      "title": "Audio Compression",
+      "summary": "Lossy MP3/AAC bitrate reduction or PCM downsampling, keeping the original format. Requires updated Leisure Box.",
+      "version": "1.0.0",
+      "sha256": "0739527565a67dd7ae3fc56a7a96bcceba19403edb95440de1f07f1c1c6fa444"
+    },
+    {
+      "id": "photo-compressor",
+      "title": "Photo Compression",
+      "summary": "Reduce dimensions and encoding quality while keeping the original image format. Requires updated Leisure Box.",
+      "version": "1.0.0",
+      "sha256": "109c856188e9de858a75ef033383c2096fd0617b7f5f420ca23615decd6c3ee5"
+    },
+    {
+      "id": "excel-editor",
+      "title": "Excel Editor",
+      "summary": "Edit XLSX cells, formulas and font styles, keeping existing sheets and package parts.",
+      "version": "1.0.0",
+      "sha256": "75192a5ede0ef1c59abadeaf543eeacc7b207be897c029477f04a3d165468e9d"
+    },
+    {
+      "id": "pdf-editor",
+      "title": "PDF Editor",
+      "summary": "Add/edit text annotations, highlight, rotate, reorder/remove pages and export PDF. Requires updated Leisure Box.",
+      "version": "1.0.0",
+      "sha256": "8e3f04ea366c0bfad7e10759b8522f566a402a47ac62a699e146b5b210652d8a"
+    },
+    {
+      "id": "ppt-editor",
+      "title": "PowerPoint Editor",
+      "summary": "Edit PPTX text and font styles, add text boxes, duplicate/reorder/remove slides and export.",
+      "version": "1.0.0",
+      "sha256": "43807c0333c45019ec4e062214cce2ebb89fab0b060e029defe19cab89ef2ed6"
     }
   ]
 }
