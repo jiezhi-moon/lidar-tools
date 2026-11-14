@@ -39,16 +39,16 @@
     {
       "id": "audio-editor",
       "title": "Audio Editor",
-      "summary": "Pinch to zoom, pan and follow playback. Split, reorder or delete clips with undo, then export in six audio formats.",
-      "version": "1.2.1",
-      "sha256": "0de4fca3c1cb27762ba0611111055d85ee5c987e3609489a82641869214c1b99"
+      "summary": "Sample-accurate clip editing with 64-bit PCM WAV/CAF export; other conversions require confirmation.",
+      "version": "1.2.2",
+      "sha256": "f70fe46c72953e1ba71fdb2023236357eb0114b1aeff4b46bd38522257f3ca21"
     },
     {
       "id": "video-editor",
       "title": "Video Editor",
-      "summary": "Add multiple videos, pinch and pan the timeline, split, reorder and delete clips; preview and export your edits.",
-      "version": "1.1.1",
-      "sha256": "07264d40b5189ad25ddd6c9c74e3c24eb73761f8f123f82440350beed24c77a2"
+      "summary": "Trim and arrange clips with original-stream export; rendered effects require explicit re-encoding confirmation.",
+      "version": "1.1.2",
+      "sha256": "9c5e9dcd273bdf95f1646a2a73add9d4e613cf6a7da2f22c30a5526044a2e47d"
     },
     {
       "id": "3d-editor",
