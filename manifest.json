@@ -61,8 +61,8 @@
       "id": "shadowrocket-config",
       "title": "Shadowrocket Config Studio",
       "summary": "Build and edit Shadowrocket configurations, save drafts, copy settings and export .conf files.",
-      "version": "1.0.0",
-      "sha256": "b91b713a2c8997235eff22a7935b28a22a11872e3a8110cafb3bc360b585cc3a"
+      "version": "1.0.1",
+      "sha256": "970bbd19be318e3ae3d361f0fcf92fd960c2892f1ea27a7f3ff45b2850a52d76"
     },
     {
       "id": "luma-sort",
