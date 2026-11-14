@@ -67,8 +67,8 @@
     {
       "id": "luma-sort",
       "title": "Luma Sort",
-      "summary": "Relaxing color-sorting bottle puzzles with hints, undo and saved progress.",
-      "version": "1.0.0",
+      "summary": "Native Swift water-sort game with30 solvable levels, tall-bottle challenge, hints, undo and saved progress. Find it in Download Games.",
+      "version": "1.1.0",
       "sha256": "073f40f507d94d4f29db2f69d2cc76f79e0c8284f3ab964536f563299570126a"
     },
     {
@@ -112,6 +112,13 @@
       "summary": "Edit PPTX text and font styles, add text boxes, duplicate/reorder/remove slides and export.",
       "version": "1.0.0",
       "sha256": "43807c0333c45019ec4e062214cce2ebb89fab0b060e029defe19cab89ef2ed6"
+    },
+    {
+      "id": "sudoku-game",
+      "title": "Sudoku",
+      "summary": "Native Swift Sudoku with unique solutions, three difficulties, pencil notes, hints, undo and saved progress. Download Games.",
+      "version": "1.0.0",
+      "sha256": "d30e9d2f44055813bed1d7a267a34871e902b41df5c8f2be3a7879e3807a97dd"
     }
   ]
 }
