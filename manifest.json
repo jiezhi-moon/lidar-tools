@@ -74,23 +74,23 @@
     {
       "id": "video-compressor",
       "title": "Video Compression",
-      "summary": "Lossy H.264/AAC compression in the original MP4, MOV or M4V container. Requires updated Leisure Box.",
-      "version": "1.0.0",
-      "sha256": "cfa0c631861e78bb0078f978a9766f08b371edbd6a185952850b5c34c8bd2f62"
+      "summary": "Enter a target size in MB or KB. Compress locally while keeping the original format. Requires the updated app.",
+      "version": "1.0.1",
+      "sha256": "f80445d493338b85f9176f1ba6cddc150eb51b24c95c7f007c7b3554791d3bc7"
     },
     {
       "id": "audio-compressor",
       "title": "Audio Compression",
-      "summary": "Lossy MP3/AAC bitrate reduction or PCM downsampling, keeping the original format. Requires updated Leisure Box.",
-      "version": "1.0.0",
-      "sha256": "0739527565a67dd7ae3fc56a7a96bcceba19403edb95440de1f07f1c1c6fa444"
+      "summary": "Enter a target size in MB or KB. Compress locally while keeping the original format. Requires the updated app.",
+      "version": "1.0.1",
+      "sha256": "91fe318a29ce9e5474b132e6080d2bd9ee7b364584e0c10f287ec96d840cfa4d"
     },
     {
       "id": "photo-compressor",
       "title": "Photo Compression",
-      "summary": "Reduce dimensions and encoding quality while keeping the original image format. Requires updated Leisure Box.",
-      "version": "1.0.0",
-      "sha256": "109c856188e9de858a75ef033383c2096fd0617b7f5f420ca23615decd6c3ee5"
+      "summary": "Enter a target size in MB or KB. Compress locally while keeping the original format. Requires the updated app.",
+      "version": "1.0.1",
+      "sha256": "012ab81971f4bfc4acf4c3bc0d662399be1bbf7811a71553cdbade321a87e64e"
     },
     {
       "id": "excel-editor",
