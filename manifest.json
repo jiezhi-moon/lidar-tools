@@ -123,9 +123,9 @@
     {
       "id": "clash-yaml",
       "title": "Clash YAML Editor",
-      "summary": "Edit Clash Verge Rev / Mihomo YAML offline: import, source editing, search/replace, error-line navigation, local drafts and YAML export. Requires the updated app.",
-      "version": "1.0.0",
-      "sha256": "c92a7775ad2ca4da29da91b99ec48fbabc6473c62c7bd3de133cdd64d90c6f74"
+      "summary": "Visual forms for Clash / Mihomo nodes, proxy groups, routing rules, DNS and TUN; import/export YAML, preserve advanced settings and save local drafts.",
+      "version": "1.1.0",
+      "sha256": "004d2e6c9884b12a5d1972d40baf8a0470799f7532bb98e62079bf7ff4d58dd5"
     }
   ]
 }
