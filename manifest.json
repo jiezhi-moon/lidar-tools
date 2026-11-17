@@ -119,6 +119,13 @@
       "summary": "Native Swift Sudoku with unique solutions, three difficulties, pencil notes, hints, undo and saved progress. Download Games.",
       "version": "1.0.0",
       "sha256": "d30e9d2f44055813bed1d7a267a34871e902b41df5c8f2be3a7879e3807a97dd"
+    },
+    {
+      "id": "clash-yaml",
+      "title": "Clash YAML Editor",
+      "summary": "Edit Clash Verge Rev / Mihomo YAML offline: import, source editing, search/replace, error-line navigation, local drafts and YAML export. Requires the updated app.",
+      "version": "1.0.0",
+      "sha256": "c92a7775ad2ca4da29da91b99ec48fbabc6473c62c7bd3de133cdd64d90c6f74"
     }
   ]
 }
