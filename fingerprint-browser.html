@@ -29,16 +29,36 @@ p { line-height: 1.45; }
 dl { display: grid; grid-template-columns: minmax(105px, .7fr) minmax(0, 1.3fr); gap: 9px; margin: 10px 0; }
 dt { font-weight: 600; }
 dd { margin: 0; overflow-wrap: anywhere; }
+#chooser { width: min(100%, 600px); margin: 0 auto; padding: 16px 4px 0; }
+#chooser header { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+#chooser h1 { font-size: 24px; margin: 0; }
+#empty { opacity: .75; }
+#profileList { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 8px; }
+.profile { display: flex; align-items: stretch; gap: 8px; }
+.profile button { min-height: 44px; height: auto; }
+.open-profile { flex: 1; text-align: left; padding: 10px 12px; overflow-wrap: anywhere; white-space: normal; }
+.delete-profile { color: light-dark(#ad2331,#ff9ca7); }
+#activeName { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#browserPanel { display: grid; gap: 8px; }
+#newProfile { white-space: normal; }
 [hidden] { display: none !important; }
 </style>
 </head>
 <body>
 <main id="panel">
-  <div class="row">
-    <select id="profiles" aria-label="Browser profile"></select>
-    <button id="newProfile">New Profile</button>
-    <button id="manage" aria-label="Manage profiles">Manage</button>
-  </div>
+  <section id="chooser" aria-label="Choose a browser profile">
+    <header>
+      <h1>Choose a profile</h1>
+      <button class="primary" id="newProfile">New Profile</button>
+    </header>
+    <p id="empty">Create a profile to start browsing.</p>
+    <ul id="profileList"></ul>
+  </section>
+  <section id="browserPanel" hidden>
+    <div class="row">
+      <button id="showProfiles">‹ Profiles</button>
+      <strong id="activeName"></strong>
+    </div>
   <form id="addressBar" class="row">
     <input id="address" type="text" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Web address" placeholder="Enter website address">
     <button class="primary" id="go">Go</button>
@@ -49,7 +69,6 @@ dd { margin: 0; overflow-wrap: anywhere; }
     <button id="reload">Reload</button>
     <button id="inspect">Fingerprint</button>
   </div>
-  <p id="feedback" role="status"></p>
   <section id="report" hidden aria-label="Fingerprint report">
     <div class="row" style="justify-content:space-between">
       <h2>Fingerprint report</h2>
@@ -58,6 +77,8 @@ dd { margin: 0; overflow-wrap: anywhere; }
     <p>Measured locally in the active browser. Sites may see different values depending on their permissions and context.</p>
     <dl id="results"></dl>
   </section>
+  </section>
+  <p id="feedback" role="status"></p>
 </main>
 <dialog id="create">
   <h2>New browser profile</h2>
@@ -113,11 +134,31 @@ new ResizeObserver(adjustLayout).observe($('panel'));
 window.receiveBrowserState = next => {
   const changedProfile = previousProfile !== next.active;
   state = next;
-  const profiles = $('profiles');
-  profiles.replaceChildren();
-  if (!state.profiles.length) profiles.add(new Option('No browser profiles', ''));
-  for (const profile of state.profiles) profiles.add(new Option(profile.name, profile.id));
-  profiles.value = state.active;
+  const activeProfile = state.profiles.find(profile => profile.id === state.active);
+  $('chooser').hidden = Boolean(activeProfile);
+  $('browserPanel').hidden = !activeProfile;
+  $('activeName').textContent = activeProfile?.name || '';
+  $('empty').hidden = state.profiles.length > 0;
+  const list = $('profileList');
+  if (!activeProfile) {
+    list.replaceChildren();
+    for (const profile of state.profiles) {
+      const row = document.createElement('li');
+      row.className = 'profile';
+      const open = document.createElement('button');
+      open.className = 'open-profile';
+      open.textContent = profile.name;
+      open.setAttribute('aria-label', 'Open ' + profile.name);
+      open.onclick = () => action('select', { id: profile.id });
+      const remove = document.createElement('button');
+      remove.className = 'delete-profile';
+      remove.textContent = 'Delete';
+      remove.setAttribute('aria-label', 'Delete ' + profile.name);
+      remove.onclick = () => confirmRemoval(profile);
+      row.append(open, remove);
+      list.append(row);
+    }
+  }
   if (changedProfile || (lastStateURL !== state.url && document.activeElement !== $('address'))) {
     $('address').value = state.url;
   }
@@ -127,17 +168,17 @@ window.receiveBrowserState = next => {
   }
   previousProfile = state.active;
   lastStateURL = state.url;
-  for (const key of ['go', 'address', 'reload', 'inspect', 'manage']) $(key).disabled = !state.active;
+  for (const key of ['go', 'address', 'reload', 'inspect']) $(key).disabled = !state.active;
   $('back').disabled = !state.back;
   $('forward').disabled = !state.forward;
   $('reload').textContent = state.loading ? 'Stop' : 'Reload';
-  feedback(state.status || (!state.active ? 'Create a profile to start browsing.' : ''));
+  feedback(state.status);
   adjustLayout();
 };
 
 async function action(command, args) {
-  try { window.receiveBrowserState(await call(command, args)); }
-  catch (error) { feedback(error.message || String(error)); }
+  try { window.receiveBrowserState(await call(command, args)); return true; }
+  catch (error) { feedback(error.message || String(error)); return false; }
 }
 function dismiss(dialog) { $(dialog).close(); adjustLayout(); }
 $('addressBar').onsubmit = event => {
@@ -145,7 +186,7 @@ $('addressBar').onsubmit = event => {
   $('address').blur();
   action('navigate', { url: $('address').value });
 };
-$('profiles').onchange = event => action('select', { id: event.target.value });
+$('showProfiles').onclick = () => action('closeProfile');
 for (const key of ['back', 'forward', 'reload']) $(key).onclick = () => action(key);
 $('newProfile').onclick = () => {
   $('profileName').value = '';
@@ -159,17 +200,25 @@ $('createForm').onsubmit = event => {
   dismiss('create');
   action('create', { name });
 };
-$('manage').onclick = () => {
-  const profile = state.profiles.find(item => item.id === state.active);
-  if (!profile) return;
+function confirmRemoval(profile) {
   $('deleteMessage').textContent = 'Delete “' + profile.name + '” and its saved logins and website data?';
-  $('confirmDelete').onclick = () => {
-    dismiss('deleteProfile');
-    action('delete', { id: profile.id });
+  $('confirmDelete').onclick = async () => {
+    $('confirmDelete').disabled = true;
+    $('cancelDelete').disabled = true;
+    $('deleteMessage').textContent = 'Deleting “' + profile.name + '”…';
+    try {
+      window.receiveBrowserState(await call('delete', { id: profile.id }));
+      dismiss('deleteProfile');
+    } catch (error) {
+      $('deleteMessage').textContent = error.message || String(error);
+    } finally {
+      $('confirmDelete').disabled = false;
+      $('cancelDelete').disabled = false;
+    }
   };
   $('deleteProfile').showModal();
   adjustLayout();
-};
+}
 $('cancelDelete').onclick = () => dismiss('deleteProfile');
 for (const id of ['create', 'deleteProfile']) $(id).addEventListener('close', adjustLayout);
 $('closeReport').onclick = () => { inspection++; $('report').hidden = true; adjustLayout(); };

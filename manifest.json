@@ -137,9 +137,9 @@
     {
       "id": "fingerprint-browser",
       "title": "Profile Browser",
-      "summary": "Keep accounts separate with independent browser profiles, and see what browser data websites can access.",
-      "version": "1.0.1",
-      "sha256": "b4485582c1fbcd94a403737976572f31fcdf4d66d82670e1f82d012b7a92fca4"
+      "summary": "Choose, create or delete browser profiles. Keep logins separate and inspect browser fingerprint data locally. Requires the updated app.",
+      "version": "1.1.0",
+      "sha256": "0416bb3407b94a19ad94953af9c64cc702ea3e7b6b1f1bdddc2034baefebb61c"
     }
   ]
 }
