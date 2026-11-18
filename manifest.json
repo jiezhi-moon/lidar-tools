@@ -140,6 +140,13 @@
       "summary": "Separate browser profiles with a default search engine for each profile, plus a local fingerprint report. Requires the updated app.",
       "version": "1.2.0",
       "sha256": "cacbb26c38b75a79a38d6ef7062f433f418aaed2dd51dc88a032d91a4768fcf5"
+    },
+    {
+      "id": "proxy-client",
+      "title": "Proxy Client",
+      "summary": "Import a subscription and browse through HTTP CONNECT or SOCKS5 inside Leisure Box. Requires the updated app.",
+      "version": "1.0.0",
+      "sha256": "3f20aa8e565178ec764728bdb63a2283ab67d0c9ade3090d6dd729550fb3ca71"
     }
   ]
 }
