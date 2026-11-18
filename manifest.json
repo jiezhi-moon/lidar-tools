@@ -60,9 +60,9 @@
     {
       "id": "shadowrocket-config",
       "title": "Shadowrocket Config Studio",
-      "summary": "Build and edit Shadowrocket configurations, save drafts, copy settings and export .conf files.",
-      "version": "1.0.1",
-      "sha256": "970bbd19be318e3ae3d361f0fcf92fd960c2892f1ea27a7f3ff45b2850a52d76"
+      "summary": "Edit Shadowrocket configurations or open a profile-specific Rules editor from Profile Browser.",
+      "version": "1.1.0",
+      "sha256": "12d61223aacf0bc27f6959259de47a15d1e6effdb40d9accff6666810a40f4c2"
     },
     {
       "id": "luma-sort",
@@ -137,16 +137,16 @@
     {
       "id": "fingerprint-browser",
       "title": "Profile Browser",
-      "summary": "Separate browser profiles with a default search engine for each profile, plus a local fingerprint report. Requires the updated app.",
-      "version": "1.2.0",
-      "sha256": "cacbb26c38b75a79a38d6ef7062f433f418aaed2dd51dc88a032d91a4768fcf5"
+      "summary": "Separate browser profiles with default routing, domain rules and a local fingerprint report. Requires the updated app.",
+      "version": "1.3.0",
+      "sha256": "ee0ec3cdd0b1bd02a4d91b9659b8e0bd055d2f7b285a2daab0e75a331fb4cb67"
     },
     {
-      "id": "proxy-client",
-      "title": "Proxy Client",
-      "summary": "Import a subscription and browse through HTTP CONNECT or SOCKS5 inside Leisure Box. Requires the updated app.",
+      "id": "proxy-config-converter",
+      "title": "Proxy Config Converter",
       "version": "1.0.0",
-      "sha256": "3f20aa8e565178ec764728bdb63a2283ab67d0c9ade3090d6dd729550fb3ca71"
+      "summary": "Convert supported Clash YAML and Shadowrocket .conf rules, HTTP and SOCKS5 nodes, and select groups. Review omitted entries before export.",
+      "sha256": "8506eeef9f8fdba777b6bf70b734c80e186d4934f69dc12373703a2b7d3374f1"
     }
   ]
 }

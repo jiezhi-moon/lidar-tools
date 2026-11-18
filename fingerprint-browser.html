@@ -37,6 +37,8 @@ dd { margin: 0; overflow-wrap: anywhere; }
 .profile { display: flex; align-items: stretch; gap: 8px; }
 .profile button { min-height: 44px; height: auto; }
 .open-profile { flex: 1; text-align: left; padding: 10px 12px; overflow-wrap: anywhere; white-space: normal; }
+.profile .open-profile{min-width:0}
+.profile .rule-profile{padding:0 9px}
 .delete-profile { color: light-dark(#ad2331,#ff9ca7); }
 #activeName { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #browserPanel { display: grid; gap: 8px; }
@@ -96,6 +98,9 @@ dd { margin: 0; overflow-wrap: anywhere; }
       <option value="duckduckgo">DuckDuckGo</option>
       <option value="brave">Brave Search</option>
     </select>
+    <label for="createRoute" style="display:block;margin-top:12px">Default route</label>
+    <select id="createRoute" style="width:100%;margin-top:6px"></select>
+    <input id="createProxy" hidden style="margin-top:6px" placeholder="socks5://host:1080" aria-label="Proxy URL" autocomplete="off" autocapitalize="off">
   </form>
 </dialog>
 <dialog id="deleteProfile">
@@ -157,7 +162,7 @@ window.receiveBrowserState = next => {
       row.className = 'profile';
       const open = document.createElement('button');
       open.className = 'open-profile';
-      open.textContent = profile.name;
+      open.textContent = profile.name + (profile.route && profile.route !== 'DIRECT' ? ' · ' + profile.route : '');
       open.setAttribute('aria-label', 'Open ' + profile.name);
       open.onclick = () => action('select', { id: profile.id });
       const remove = document.createElement('button');
@@ -165,7 +170,12 @@ window.receiveBrowserState = next => {
       remove.textContent = 'Delete';
       remove.setAttribute('aria-label', 'Delete ' + profile.name);
       remove.onclick = () => confirmRemoval(profile);
-      row.append(open, remove);
+      const rules = document.createElement('button');
+      rules.className = 'rule-profile';
+      rules.textContent = 'Rules';
+      rules.setAttribute('aria-label', 'Rules for ' + profile.name);
+      rules.onclick = () => action('rules', { id: profile.id });
+      row.append(open, rules, remove);
       list.append(row);
     }
   }
@@ -240,15 +250,34 @@ for (const key of ['back', 'forward', 'reload']) $(key).onclick = () => action(k
 $('newProfile').onclick = () => {
   $('profileName').value = '';
   $('searchEngine').value = 'google';
+  const routes = $('createRoute');
+  routes.replaceChildren(new Option('Direct', 'DIRECT'), new Option('Reject', 'REJECT'));
+  for(const name of state.nodes ?? []) routes.add(new Option(name, name));
+  routes.add(new Option('Custom proxy…', '__custom'));
+  $('createProxy').value = '';
+  $('createProxy').hidden = true;
   $('create').showModal();
   adjustLayout();
 };
+$('createRoute').onchange = () => { $('createProxy').hidden = $('createRoute').value !== '__custom'; };
+function customProxy(text) {
+  const url = new URL(text);
+  const kind = url.protocol.slice(0,-1);
+  const port = Number(url.port || ({http:80,https:443,socks5:1080})[kind]);
+  if (!['http','https','socks5'].includes(kind) || !url.hostname || !Number.isInteger(port)) throw Error('Enter an HTTP, HTTPS or SOCKS5 proxy URL.');
+  const host = url.hostname.replace(/^\[|\]$/g,'');
+  return {name:host+':'+port,kind,host,port,username:decodeURIComponent(url.username),password:decodeURIComponent(url.password)};
+}
 $('cancelCreate').onclick = () => dismiss('create');
 $('createForm').onsubmit = event => {
   event.preventDefault();
   const name = $('profileName').value;
-  dismiss('create');
-  action('create', { name, searchEngine: $('searchEngine').value });
+  const route = $('createRoute').value;
+  try {
+    const node = route === '__custom' ? customProxy($('createProxy').value.trim()) : null;
+    dismiss('create');
+    action('create', { name, searchEngine: $('searchEngine').value, route: node?.name || route, node });
+  } catch (error) { dismiss('create'); feedback(error.message); }
 };
 function confirmRemoval(profile) {
   $('deleteMessage').textContent = 'Delete “' + profile.name + '” and its saved logins and website data?';
