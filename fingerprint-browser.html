@@ -60,7 +60,7 @@ dd { margin: 0; overflow-wrap: anywhere; }
       <strong id="activeName"></strong>
     </div>
   <form id="addressBar" class="row">
-    <input id="address" type="text" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Web address" placeholder="Enter website address">
+    <input id="address" type="text" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Web address" placeholder="Search or enter a website">
     <button class="primary" id="go">Go</button>
   </form>
   <div class="row">
@@ -89,6 +89,13 @@ dd { margin: 0; overflow-wrap: anywhere; }
       <button class="primary">Create</button>
       <button type="button" id="cancelCreate">Cancel</button>
     </div>
+    <label for="searchEngine" style="display:block;margin-top:12px">Default search engine</label>
+    <select id="searchEngine" style="width:100%;margin-top:6px">
+      <option value="google">Google</option>
+      <option value="bing">Bing</option>
+      <option value="duckduckgo">DuckDuckGo</option>
+      <option value="brave">Brave Search</option>
+    </select>
   </form>
 </dialog>
 <dialog id="deleteProfile">
@@ -138,6 +145,9 @@ window.receiveBrowserState = next => {
   $('chooser').hidden = Boolean(activeProfile);
   $('browserPanel').hidden = !activeProfile;
   $('activeName').textContent = activeProfile?.name || '';
+  const engine = activeProfile?.searchEngine || 'google';
+  const engineName = Object.hasOwn(searchEngines, engine) ? searchEngines[engine].name : 'Google';
+  $('address').placeholder = 'Search ' + engineName + ' or enter a website';
   $('empty').hidden = state.profiles.length > 0;
   const list = $('profileList');
   if (!activeProfile) {
@@ -181,15 +191,55 @@ async function action(command, args) {
   catch (error) { feedback(error.message || String(error)); return false; }
 }
 function dismiss(dialog) { $(dialog).close(); adjustLayout(); }
+const searchEngines = {
+  google: { name: 'Google', url: 'https://www.google.com/search' },
+  bing: { name: 'Bing', url: 'https://www.bing.com/search' },
+  duckduckgo: { name: 'DuckDuckGo', url: 'https://duckduckgo.com/' },
+  brave: { name: 'Brave Search', url: 'https://search.brave.com/search' }
+};
+
+function resolveAddress(input, engine) {
+  const value = input.trim();
+  if (!value) return null;
+  if (value.length > 4096) throw new Error('The address or search is too long.');
+
+  const host = value.split(/[/?#]/, 1)[0];
+  const explicit = /^https?:\/\//i.test(value);
+  const local = /^(?:localhost|\[[0-9a-f:.]+\])(?::\d+)?$/i.test(host);
+  const domain = /^[\p{L}\p{N}-]+(?:\.[\p{L}\p{N}-]+)+\.?(?::\d+)?$/u.test(host);
+  const hostWithPort = /^[a-z][a-z0-9-]*:\d+$/i.test(host);
+  const scheme = /^[a-z][a-z0-9+.-]*:/i.test(value);
+  if (explicit || (!/\s/.test(value) && (local || domain || hostWithPort))) {
+    const url = new URL(explicit ? value : 'https://' + value);
+    if (!url.hostname || url.username || url.password) throw new Error('Enter a valid website address.');
+    return url.href;
+  }
+  if (scheme && !/\s/.test(value)) throw new Error('Use an HTTP or HTTPS website address.');
+
+  const selected = Object.hasOwn(searchEngines, engine) ? searchEngines[engine] : searchEngines.google;
+  const url = new URL(selected.url);
+  url.searchParams.set('q', value);
+  return url.href;
+}
+
 $('addressBar').onsubmit = event => {
   event.preventDefault();
-  $('address').blur();
-  action('navigate', { url: $('address').value });
+  const profile = state.profiles.find(item => item.id === state.active);
+  if (!profile) return;
+  try {
+    const url = resolveAddress($('address').value, profile.searchEngine);
+    if (!url) return;
+    $('address').blur();
+    action('navigate', { url });
+  } catch (error) {
+    feedback(error.message || String(error));
+  }
 };
 $('showProfiles').onclick = () => action('closeProfile');
 for (const key of ['back', 'forward', 'reload']) $(key).onclick = () => action(key);
 $('newProfile').onclick = () => {
   $('profileName').value = '';
+  $('searchEngine').value = 'google';
   $('create').showModal();
   adjustLayout();
 };
@@ -198,7 +248,7 @@ $('createForm').onsubmit = event => {
   event.preventDefault();
   const name = $('profileName').value;
   dismiss('create');
-  action('create', { name });
+  action('create', { name, searchEngine: $('searchEngine').value });
 };
 function confirmRemoval(profile) {
   $('deleteMessage').textContent = 'Delete “' + profile.name + '” and its saved logins and website data?';
