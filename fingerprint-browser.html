@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fingerprint Browser</title>
+<style>
+:root { color-scheme: light dark; font: 15px -apple-system, system-ui; --accent: #2863d6; }
+* { box-sizing: border-box; }
+body { margin: 0; background: light-dark(#f2f5fb,#161e2c); }
+main { padding: 10px 12px 8px; display: grid; gap: 8px; }
+.row { display: flex; align-items: center; gap: 6px; }
+input, select, button { font: inherit; border: 1px solid #8292b550; border-radius: 9px;
+  color: inherit; background: light-dark(white,#222c3c); height: 36px; }
+button { padding: 0 10px; white-space: nowrap; }
+button:disabled { opacity: .45; }
+input, select { min-width: 0; flex: 1; padding: 0 8px; }
+input { font-size: 16px; width: 100%; }
+.primary { color: white; background: var(--accent); border-color: transparent; }
+#feedback { margin: 0; font-size: 13px; overflow-wrap: anywhere; }
+#feedback:empty { display: none; }
+dialog { width: min(440px, calc(100% - 22px)); border: 1px solid #8292b550;
+  border-radius: 15px; padding: 16px; color: inherit; background: light-dark(#fff,#222c3c); }
+dialog::backdrop { background: #101a2a66; }
+h2 { margin: 0 0 10px; font-size: 18px; }
+p { line-height: 1.45; }
+#report { border-top: 1px solid #8292b550; padding-top: 10px; }
+#report h2 { margin: 0; }
+dl { display: grid; grid-template-columns: minmax(105px, .7fr) minmax(0, 1.3fr); gap: 9px; margin: 10px 0; }
+dt { font-weight: 600; }
+dd { margin: 0; overflow-wrap: anywhere; }
+[hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main id="panel">
+  <div class="row">
+    <select id="profiles" aria-label="Browser profile"></select>
+    <button id="newProfile">New Profile</button>
+    <button id="manage" aria-label="Manage profiles">Manage</button>
+  </div>
+  <form id="addressBar" class="row">
+    <input id="address" type="text" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Web address" placeholder="Enter website address">
+    <button class="primary" id="go">Go</button>
+  </form>
+  <div class="row">
+    <button id="back" aria-label="Back">←</button>
+    <button id="forward" aria-label="Forward">→</button>
+    <button id="reload">Reload</button>
+    <button id="inspect">Fingerprint</button>
+  </div>
+  <p id="feedback" role="status"></p>
+  <section id="report" hidden aria-label="Fingerprint report">
+    <div class="row" style="justify-content:space-between">
+      <h2>Fingerprint report</h2>
+      <button id="closeReport">Close</button>
+    </div>
+    <p>Measured locally in the active browser. Sites may see different values depending on their permissions and context.</p>
+    <dl id="results"></dl>
+  </section>
+</main>
+<dialog id="create">
+  <h2>New browser profile</h2>
+  <p>Each profile stores its own cookies, site data and logins.</p>
+  <form id="createForm">
+    <div class="row">
+      <input id="profileName" maxlength="48" required aria-label="Profile name" placeholder="Profile name">
+      <button class="primary">Create</button>
+      <button type="button" id="cancelCreate">Cancel</button>
+    </div>
+  </form>
+</dialog>
+<dialog id="deleteProfile">
+  <h2>Delete browser profile?</h2>
+  <p id="deleteMessage"></p>
+  <div class="row">
+    <button id="confirmDelete">Delete Profile</button>
+    <button id="cancelDelete">Cancel</button>
+  </div>
+</dialog>
+<script>
+const $ = id => document.getElementById(id);
+const fields = [
+  ['userAgent', 'User agent'], ['platform', 'Platform'], ['languages', 'Languages'],
+  ['timezone', 'Time zone'], ['display', 'Screen'], ['viewport', 'Page viewport'],
+  ['pixelRatio', 'Pixel ratio'], ['touchPoints', 'Touch points'], ['cookies', 'Cookies'],
+  ['webgl', 'WebGL renderer'], ['canvas', 'Canvas test signature']
+];
+let state = { profiles: [], active: '', url: '' };
+let layoutSize = 0;
+let lastStateURL = '';
+let previousProfile = '';
+let inspection = 0;
+
+async function call(command, args = {}) {
+  const bridge = window.webkit?.messageHandlers?.profileBrowser;
+  if (!bridge) throw new Error('Open this download in an updated Leisure Box.');
+  return bridge.postMessage({ command, ...args });
+}
+function feedback(message) {
+  $('feedback').textContent = message || '';
+}
+function adjustLayout() {
+  const dialogOpen = $('create').open || $('deleteProfile').open;
+  const contentHeight = Math.ceil($('panel').getBoundingClientRect().height);
+  const size = Math.max(contentHeight, dialogOpen ? 310 : 140);
+  if (layoutSize === size) return;
+  layoutSize = size;
+  call('resize', { height: size }).catch(() => {});
+}
+new ResizeObserver(adjustLayout).observe($('panel'));
+
+window.receiveBrowserState = next => {
+  const changedProfile = previousProfile !== next.active;
+  state = next;
+  const profiles = $('profiles');
+  profiles.replaceChildren();
+  if (!state.profiles.length) profiles.add(new Option('No browser profiles', ''));
+  for (const profile of state.profiles) profiles.add(new Option(profile.name, profile.id));
+  profiles.value = state.active;
+  if (changedProfile || (lastStateURL !== state.url && document.activeElement !== $('address'))) {
+    $('address').value = state.url;
+  }
+  if (changedProfile) {
+    inspection++;
+    $('report').hidden = true;
+  }
+  previousProfile = state.active;
+  lastStateURL = state.url;
+  for (const key of ['go', 'address', 'reload', 'inspect', 'manage']) $(key).disabled = !state.active;
+  $('back').disabled = !state.back;
+  $('forward').disabled = !state.forward;
+  $('reload').textContent = state.loading ? 'Stop' : 'Reload';
+  feedback(state.status || (!state.active ? 'Create a profile to start browsing.' : ''));
+  adjustLayout();
+};
+
+async function action(command, args) {
+  try { window.receiveBrowserState(await call(command, args)); }
+  catch (error) { feedback(error.message || String(error)); }
+}
+function dismiss(dialog) { $(dialog).close(); adjustLayout(); }
+$('addressBar').onsubmit = event => {
+  event.preventDefault();
+  $('address').blur();
+  action('navigate', { url: $('address').value });
+};
+$('profiles').onchange = event => action('select', { id: event.target.value });
+for (const key of ['back', 'forward', 'reload']) $(key).onclick = () => action(key);
+$('newProfile').onclick = () => {
+  $('profileName').value = '';
+  $('create').showModal();
+  adjustLayout();
+};
+$('cancelCreate').onclick = () => dismiss('create');
+$('createForm').onsubmit = event => {
+  event.preventDefault();
+  const name = $('profileName').value;
+  dismiss('create');
+  action('create', { name });
+};
+$('manage').onclick = () => {
+  const profile = state.profiles.find(item => item.id === state.active);
+  if (!profile) return;
+  $('deleteMessage').textContent = 'Delete “' + profile.name + '” and its saved logins and website data?';
+  $('confirmDelete').onclick = () => {
+    dismiss('deleteProfile');
+    action('delete', { id: profile.id });
+  };
+  $('deleteProfile').showModal();
+  adjustLayout();
+};
+$('cancelDelete').onclick = () => dismiss('deleteProfile');
+for (const id of ['create', 'deleteProfile']) $(id).addEventListener('close', adjustLayout);
+$('closeReport').onclick = () => { inspection++; $('report').hidden = true; adjustLayout(); };
+$('inspect').onclick = async () => {
+  const ticket = ++inspection;
+  try {
+    const data = await call('inspect');
+    if (ticket !== inspection) return;
+    const list = $('results');
+    list.replaceChildren();
+    for (const [key, label] of fields) {
+      const term = document.createElement('dt');
+      term.textContent = label;
+      const value = document.createElement('dd');
+      value.textContent = data?.[key] ?? 'Unavailable';
+      list.append(term, value);
+    }
+    $('report').hidden = false;
+    adjustLayout();
+  } catch (error) {
+    if (ticket === inspection) feedback(error.message || String(error));
+  }
+};
+action('state');
+</script>
+</body>
+</html>

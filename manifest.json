@@ -133,6 +133,13 @@
       "summary": "Downloaded Flat / Sphere panorama editor with brush, text, color adjustments and full-resolution lossless PNG export. Supports 8-bit SDR JPEG / PNG.",
       "version": "1.0.0",
       "sha256": "c7bfe374c22aff6eee357e1d526caabf087037570224b808947347252d59eab0"
+    },
+    {
+      "id": "fingerprint-browser",
+      "title": "Fingerprint Browser",
+      "summary": "Browse with separate profiles and saved logins. Inspect browser-exposed device data locally. Requires the updated Leisure Box app.",
+      "version": "1.0.0",
+      "sha256": "d6ac3d7a673032cee9510d91463bb34ba58ba8e4f815e0ed1a79e13259f03c24"
     }
   ]
 }
