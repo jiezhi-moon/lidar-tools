@@ -53,9 +53,9 @@
     {
       "id": "3d-editor",
       "title": "3D Editor",
-      "summary": "Edit and convert models; orbit, two-finger pan/pinch, undo, object tools and USDZ, GLB, FBX, OBJ, PLY, STL or SCN export.",
-      "version": "1.0.0",
-      "sha256": "51bfec8dbf8b1ab0322b36c7e949483b86b082d3300bc9955299d0abcf6424e3"
+      "summary": "Edit 3D models, export original OBJ and assets with the updated Leisure Box app, or convert to another supported format.",
+      "version": "1.1.0",
+      "sha256": "30a24b4e0a62874f07f94b1fee7884ab72f60b93ee1c35a18ec5be6d74fa4a87"
     },
     {
       "id": "shadowrocket-config",
