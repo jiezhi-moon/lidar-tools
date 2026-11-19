@@ -137,9 +137,9 @@
     {
       "id": "fingerprint-browser",
       "title": "Profile Browser",
-      "summary": "Separate browser profiles with default routing, domain rules and a local fingerprint report. Requires the updated app.",
-      "version": "1.3.0",
-      "sha256": "ee0ec3cdd0b1bd02a4d91b9659b8e0bd055d2f7b285a2daab0e75a331fb4cb67"
+      "summary": "Separate browser profiles with domain rules and an optional side toolbar in landscape. New layout requires the updated app.",
+      "version": "1.4.0",
+      "sha256": "395363ded90c805813344c961249ee730e1628b1827633fbf88ef672a29a2d58"
     },
     {
       "id": "proxy-config-converter",

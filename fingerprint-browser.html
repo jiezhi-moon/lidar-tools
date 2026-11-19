@@ -43,6 +43,57 @@ dd { margin: 0; overflow-wrap: anywhere; }
 #activeName { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #browserPanel { display: grid; gap: 8px; }
 #newProfile { white-space: normal; }
+.chooser-actions { flex-shrink: 0; }
+[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+
+.browser-landscape #panel { padding: 4px 8px; gap: 3px; }
+.browser-top #browserPanel:not([hidden]) {
+display: grid; gap: 4px; align-items: center;
+grid-template-columns: auto 44px 44px minmax(0, 1fr) 44px 44px 44px 44px;
+}
+.browser-top #browserPanel > .row:not(form) { display: contents; }
+.browser-top #browserPanel button,
+.browser-top #address { min-height: 44px; }
+.browser-top #activeName { display: none; }
+.browser-top #showProfiles { grid-area: 1 / 1; padding: 0 8px; }
+.browser-top #back { grid-area: 1 / 2; }
+.browser-top #forward { grid-area: 1 / 3; }
+.browser-top #addressBar { grid-area: 1 / 4; min-width: 0; gap: 4px; }
+.browser-top #go { display: none; }
+.browser-top #domainRules { grid-area: 1 / 6; font-size: 0; padding: 0; }
+.browser-top #domainRules::after { content: "◎"; font-size: 19px; }
+.browser-top #browserSettings { grid-area: 1 / 8; padding: 0; }
+.browser-top #reload { grid-area: 1 / 5; font-size: 0; }
+.browser-top #reload::after { content: "↻"; font-size: 20px; }
+.browser-top #reload[data-loading]::after { content: "×"; }
+.browser-top #inspect { grid-area: 1 / 7; font-size: 0; }
+.browser-top #inspect::after { content: "ⓘ"; font-size: 19px; }
+@media (max-width: 530px) {
+.browser-top #showProfiles { width: 44px; font-size: 0; }
+.browser-top #showProfiles::after { content: "☰"; font-size: 17px; }
+}
+.browser-top #report { grid-column: 1 / -1; }
+.browser-landscape #feedback { max-height: 3em; overflow: auto; }
+.browser-landscape #chooser { width: min(100%, 880px); padding: 8px 4px 0; }
+.browser-landscape #newProfile { min-height: 44px; }
+.browser-landscape #profileList { margin-top: 8px; }
+@media (min-width: 650px) {
+.browser-landscape #profileList { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+.browser-landscape dialog { max-height: calc(100% - 12px); overflow: auto; }
+
+
+.browser-side #panel { padding: 8px; }
+.browser-side #browserPanel { gap: 10px; }
+.browser-side #browserPanel button, .browser-side #address { min-height: 44px; }
+.browser-side #browserPanel > .row { display: flex; flex-wrap: wrap; }
+.browser-side #activeName { flex-basis: 100%; order: -1; }
+.browser-side #addressBar { flex-wrap: nowrap; }
+.browser-side #showProfiles, .browser-side #domainRules,
+.browser-side #back, .browser-side #forward, .browser-side #reload { flex: 1; }
+.browser-side #inspect { flex-basis: 100%; }
+#browserSettings, #chooserSettings { min-width: 44px; min-height: 44px; font-size: 18px; padding: 0 8px; }
+
 [hidden] { display: none !important; }
 </style>
 </head>
@@ -51,25 +102,30 @@ dd { margin: 0; overflow-wrap: anywhere; }
   <section id="chooser" aria-label="Choose a browser profile">
     <header>
       <h1>Choose a profile</h1>
-      <button class="primary" id="newProfile">New Profile</button>
+      <div class="row chooser-actions">
+        <button id="chooserSettings" aria-label="Browser settings" title="Browser settings" hidden>⚙</button>
+        <button class="primary" id="newProfile">New Profile</button>
+      </div>
     </header>
     <p id="empty">Create a profile to start browsing.</p>
     <ul id="profileList"></ul>
   </section>
   <section id="browserPanel" hidden>
     <div class="row">
-      <button id="showProfiles">‹ Profiles</button>
+      <button id="showProfiles" aria-label="Show profiles">‹ Profiles</button>
       <strong id="activeName"></strong>
+      <button id="domainRules" aria-label="Domain rules" title="Domain rules" aria-pressed="false" hidden>Domain</button>
+      <button id="browserSettings" aria-label="Browser settings" title="Browser settings" hidden>⚙</button>
     </div>
   <form id="addressBar" class="row">
-    <input id="address" type="text" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Web address" placeholder="Search or enter a website">
+    <input id="address" type="text" inputmode="url" enterkeyhint="go" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Web address" placeholder="Search or enter a website">
     <button class="primary" id="go">Go</button>
   </form>
   <div class="row">
     <button id="back" aria-label="Back">←</button>
     <button id="forward" aria-label="Forward">→</button>
     <button id="reload">Reload</button>
-    <button id="inspect">Fingerprint</button>
+    <button id="inspect" aria-label="Fingerprint report">Fingerprint</button>
   </div>
   <section id="report" hidden aria-label="Fingerprint report">
     <div class="row" style="justify-content:space-between">
@@ -120,7 +176,8 @@ const fields = [
   ['webgl', 'WebGL renderer'], ['canvas', 'Canvas test signature']
 ];
 let state = { profiles: [], active: '', url: '' };
-let layoutSize = 0;
+let layoutKey = '';
+window.profileBrowserLayoutVersion = 2;
 let lastStateURL = '';
 let previousProfile = '';
 let inspection = 0;
@@ -134,18 +191,36 @@ function feedback(message) {
   $('feedback').textContent = message || '';
 }
 function adjustLayout() {
+  const panel = $('panel');
+  const topLandscape = document.documentElement.classList.contains('browser-top');
+  if (state.active && state.layoutVersion === 2 && state.toolbarPosition !== 'top') return;
   const dialogOpen = $('create').open || $('deleteProfile').open;
-  const contentHeight = Math.ceil($('panel').getBoundingClientRect().height);
-  const size = Math.max(contentHeight, dialogOpen ? 310 : 140);
-  if (layoutSize === size) return;
-  layoutSize = size;
-  call('resize', { height: size }).catch(() => {});
+  const contentHeight = Math.ceil(panel.getBoundingClientRect().height);
+  const size = Math.max(contentHeight, dialogOpen ? 310 : topLandscape ? 52 : 140);
+  const command = topLandscape ? 'compactResize' : 'resize';
+  const key = command + ':' + size;
+  if (layoutKey === key) return;
+  layoutKey = key;
+  call(command, { height: size }).catch(() => {});
 }
 new ResizeObserver(adjustLayout).observe($('panel'));
 
 window.receiveBrowserState = next => {
   const changedProfile = previousProfile !== next.active;
+  if (state.active !== next.active || state.toolbarPosition !== next.toolbarPosition ||
+      state.landscape !== next.landscape || state.layoutVersion !== next.layoutVersion) layoutKey = '';
   state = next;
+  const upgraded = state.layoutVersion === 2;
+  const landscape = upgraded && state.landscape === true;
+  const dock = landscape && ['left', 'right'].includes(state.toolbarPosition) ? state.toolbarPosition : 'top';
+  const root = document.documentElement;
+  if (upgraded) root.classList.toggle('browser-landscape', landscape);
+  root.classList.toggle('browser-top', landscape && dock === 'top');
+  root.classList.toggle('browser-side', dock !== 'top');
+  $('domainRules').hidden = !upgraded;
+  $('domainRules').setAttribute('aria-pressed', state.domainsOpen === true ? 'true' : 'false');
+  $('browserSettings').hidden = !upgraded;
+  $('chooserSettings').hidden = !upgraded;
   const activeProfile = state.profiles.find(profile => profile.id === state.active);
   $('chooser').hidden = Boolean(activeProfile);
   $('browserPanel').hidden = !activeProfile;
@@ -192,6 +267,7 @@ window.receiveBrowserState = next => {
   $('back').disabled = !state.back;
   $('forward').disabled = !state.forward;
   $('reload').textContent = state.loading ? 'Stop' : 'Reload';
+  $('reload').toggleAttribute('data-loading', state.loading === true);
   feedback(state.status);
   adjustLayout();
 };
@@ -321,6 +397,9 @@ $('inspect').onclick = async () => {
     if (ticket === inspection) feedback(error.message || String(error));
   }
 };
+$('domainRules').onclick = () => action('toggleDomains');
+$('browserSettings').onclick = $('chooserSettings').onclick = () => action('browserSettings');
+call('layoutReady', { version: 2 }).then(window.receiveBrowserState).catch(() => {});
 action('state');
 </script>
 </body>
