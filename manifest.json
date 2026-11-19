@@ -123,9 +123,9 @@
     {
       "id": "clash-yaml",
       "title": "Clash YAML Editor",
-      "summary": "Visual forms for Clash / Mihomo nodes, proxy groups, routing rules, DNS and TUN; import/export YAML, preserve advanced settings and save local drafts.",
-      "version": "1.1.0",
-      "sha256": "004d2e6c9884b12a5d1972d40baf8a0470799f7532bb98e62079bf7ff4d58dd5"
+      "summary": "Edit Clash / Mihomo nodes, proxy chains, groups, routing rules, DNS and TUN. Import and export YAML with advanced settings preserved.",
+      "version": "1.2.0",
+      "sha256": "feda5af52ed3bb1ac6c89452cacbb2161699f7cdc0acf09bb5e149b20662fb62"
     },
     {
       "id": "panorama-editor",
