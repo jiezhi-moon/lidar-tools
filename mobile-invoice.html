@@ -694,9 +694,21 @@ async function shareToolFile(blob, name) {
       const spans=xs.slice(0,-1).map((x,ci)=>{
         const out=[];let start=0;
         for(let ri=1;ri<bands.length;ri++){
-          const y=bands[ri][0]*h;let n=0,t=0;
-          for(let px=x+4;px<xs[ci+1]-4;px+=step*2){n+=[-ysStep,0,ysStep].some(d=>ink(px,y+d));t++}
-          if(t&&n/t>.62){out.push([start,ri-1]);start=ri}
+          const y=bands[ri][0]*h,right=xs[ci+1];
+          const inset=Math.max(2,step*2),stride=Math.max(1,step),leftEdge=x+inset,rightEdge=right-inset;
+          // A real divider reaches both sides of this cell in one scanline.
+          // Combining ink from adjacent scanlines can turn a centered name into a false divider.
+          const isDivider=[-ysStep,0,ysStep].some(offset=>{
+            let inkCount=0,count=0,leftInk=0,leftCount=0,rightInk=0,rightCount=0;
+            const edgeWidth=Math.max(3*stride,Math.round((rightEdge-leftEdge)*.12));
+            for(let px=leftEdge;px<=rightEdge;px+=stride){
+              const dark=Number(ink(px,y+offset));inkCount+=dark;count++;
+              if(px<leftEdge+edgeWidth){leftInk+=dark;leftCount++}
+              if(px>rightEdge-edgeWidth){rightInk+=dark;rightCount++}
+            }
+            return count>0&&leftCount>0&&rightCount>0&&inkCount/count>=.75&&leftInk/leftCount>=.65&&rightInk/rightCount>=.65;
+          });
+          if(isDivider){out.push([start,ri-1]);start=ri}
         }
         out.push([start,bands.length-1]);return out;
       });
