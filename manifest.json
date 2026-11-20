@@ -144,9 +144,9 @@
     {
       "id": "proxy-config-converter",
       "title": "Proxy Config Converter",
-      "version": "1.2.0",
+      "version": "1.2.1",
       "summary": "Convert Clash YAML and Shadowrocket CONF, including nested select, url-test and fallback groups. Resolve unavailable policies before exporting.",
-      "sha256": "eb5c78a60130f119012adf83a11413f045bb350ee9931fd20d26d3d3b5c58f09"
+      "sha256": "34068090d7dbc2fb6d299d3acd32ea76a1b279e4bda929b5009b926a3891deec"
     }
   ]
 }

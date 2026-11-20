@@ -22,7 +22,7 @@
 <textarea id="output" rows="10" readonly></textarea>
 <section id="replacementSection" hidden>
   <strong>Replace unavailable policies</strong>
-  <p class="muted">Choose where these rules should route in the converted file.</p>
+  <p class="muted">These rules need a destination before export. Select an available node or group.</p>
   <div id="replacementList"></div>
 </section>
 <div id="warning" hidden><strong>Review omitted entries</strong><ul id="skipped"></ul>
@@ -285,8 +285,19 @@ function confProxy(line) {
   const name = line.slice(0,equals).trim();
   const split = confFields(line.slice(equals+1));
   if (!split || split.length < 3) return null;
-  const [type, server, port, ...options] = split;
+  const [rawType, server, port, ...options] = split;
+  const type = rawType.toLowerCase();
   const raw = Object.assign(Object.create(null), {name, type, server, port});
+  // Shadowrocket exports both positional and key=value credentials.
+  if (type === 'ss' && options.length >= 2 && !options[0].includes('=')) {
+    raw.cipher = options.shift();
+    raw.password = options.shift();
+  } else if (['http','https','socks5'].includes(type) && options.length >= 2 && !options[0].includes('=')) {
+    raw.username = options.shift();
+    raw.password = options.shift();
+  } else if (type === 'trojan' && options.length && !options[0].includes('=')) {
+    raw.password = options.shift();
+  }
   for (const option of options) {
     const at = option.indexOf('=');
     if (at < 1) return null;
@@ -417,7 +428,13 @@ function parseConfig(text, direction) {
       if (section === 'proxy') {
         const node = confProxy(line);
         if (node) nodes.push(node);
-        else skipped.push('Unsupported proxy at line ' + (index + 1) + '.');
+        else {
+          const at=line.indexOf('=');
+          const label=at>0?line.slice(0,at).trim():'unnamed';
+          const parts=at>0?confFields(line.slice(at+1)):null;
+          const kind=parts?.[0]||'unknown';
+          skipped.push('Node “'+label+'” at line '+(index+1)+' could not be read (type '+kind+'). Its original line is required to check the unsupported fields.');
+        }
       }
     }
   } else {
@@ -475,6 +492,11 @@ function conversion(result, direction, replacements = new Map()) {
     groupByName.set(group.name,group);
     indexName(group.name);
   }
+  if (direction === 'yaml' && result.rules.some(rule=>rule.policy.toUpperCase()==='PROXY') &&
+      !known.has('PROXY') && validNodes.length) {
+    groupByName.set('PROXY',{name:'PROXY',type:'select',members:validNodes.map(node=>node.name),options:{}});
+    indexName('PROXY');
+  }
   function nameOf(raw) {
     if (builtinPolicies.has(raw.toUpperCase())) return raw.toUpperCase();
     return names.has(raw)||groupByName.has(raw) ? raw : known.get(raw.toUpperCase()) ?? raw;
@@ -518,6 +540,7 @@ function conversion(result, direction, replacements = new Map()) {
   const choices=[...builtin,...names];
   const available=new Set(choices);
   const missingPolicies=new Map();
+  let unresolvedRules=0;
   const rules = [];
   for (const rule of result.rules) {
     let policy=nameOf(rule.policy);
@@ -528,12 +551,13 @@ function conversion(result, direction, replacements = new Map()) {
     const replacement=replacements.get(rule.policy);
     missingPolicies.set(rule.policy,(missingPolicies.get(rule.policy)||0)+1);
     if (available.has(replacement)) rules.push({...rule,policy:replacement});
+    else unresolvedRules++;
   }
   for (const [policy,count] of missingPolicies) {
     const replacement=replacements.get(policy);
     if (!available.has(replacement)) skipped.push('Policy “'+policy+'” could not be converted. '+count+' rules need a replacement.');
   }
-  if (!rules.length && !validNodes.length && !groups.length) return {output:'',skipped,missingPolicies,choices};
+  if (!rules.length && !validNodes.length && !groups.length) return {output:'',skipped,missingPolicies,choices,unresolvedRules};
   let output;
   if (direction === 'yaml') {
     output = ['proxies:',...validNodes.map(n=>'  - '+JSON.stringify({
@@ -558,7 +582,7 @@ function conversion(result, direction, replacements = new Map()) {
         key+'='+(key==='hidden'?Number(value):key==='timeout'?value/1000:value))].join(', '))]:[]),
       '', '[Rule]', ...rules.map(r=>formatRule(r,'conf'))].join('\n');
   }
-  return {output:output+'\n',skipped, counts:[validNodes.length, groups.length, rules.length], missingPolicies, choices};
+  return {output:output+'\n',skipped, counts:[validNodes.length, groups.length, rules.length], missingPolicies, choices, unresolvedRules};
 }
 
 </script>
@@ -625,7 +649,7 @@ function renderReplacements() {
     const label=document.createElement('label');
     label.textContent=policy+' · '+count+(count===1?' rule':' rules');
     const select=document.createElement('select');
-    select.add(new Option('Skip these rules',''));
+    select.add(new Option('Choose a route to keep these rules',''));
     for (const available of current.choices) select.add(new Option(available,available));
     select.value=replacements.get(policy)||'';
     select.onchange=()=>{
@@ -672,8 +696,8 @@ function convert() {
     const ready=Boolean(current.output);
     $('warning').hidden=!current.skipped.length;
     $('approve').checked=false;
-    $('approve').disabled=!ready;
-    $('export').disabled=!ready||Boolean(current.skipped.length);
+    $('approve').disabled=!ready||current.unresolvedRules>0;
+    $('export').disabled=!ready||current.unresolvedRules>0||Boolean(current.skipped.length);
     $('result').hidden=!ready&&!current.skipped.length;
     $('status').textContent=ready
       ? current.counts[0]+' nodes · '+current.counts[1]+' groups · '+current.counts[2]+' rules'
@@ -688,10 +712,10 @@ function convert() {
 }
 $('convert').onclick=convert;
 $('approve').onchange=()=>{
-  $('export').disabled=!current?.output || (Boolean(current.skipped.length) && !$('approve').checked);
+  $('export').disabled=!current?.output || current.unresolvedRules>0 || (Boolean(current.skipped.length) && !$('approve').checked);
 };
 $('export').onclick=async()=>{
-  if (!current?.output || (current.skipped.length && !$('approve').checked)) return;
+  if (!current?.output || current.unresolvedRules>0 || (current.skipped.length && !$('approve').checked)) return;
   const base=filename.replace(/\.[^.]+$/,'').replace(/[^\p{L}\p{N} ._-]/gu,'_').trim().slice(0,100);
   const name=(base||'converted')+'.'+current.target;
   try {
