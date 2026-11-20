@@ -5,123 +5,141 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Profile Browser</title>
 <style>
-:root { color-scheme: light dark; font: 15px -apple-system, system-ui; --accent: #2863d6; }
+:root {
+  color-scheme: light dark;
+  font: 15px -apple-system, system-ui;
+  --surface: light-dark(#f7f8fa, #202225);
+  --field: light-dark(#fff, #2c2f33);
+  --group: light-dark(#ebedf1, #2a2d31);
+  --line: light-dark(#d9dde4, #383c42);
+  --muted: light-dark(#536176, #a6aebb);
+  --accent: light-dark(#2059bc, #8eb8ff);
+  --accent-fill: light-dark(#2059bc, #355c9a);
+  --focus: light-dark(#e3edfe, #293a55);
+}
 * { box-sizing: border-box; }
-body { margin: 0; background: light-dark(#f2f5fb,#161e2c); }
-main { padding: 10px 12px 8px; display: grid; gap: 8px; }
+body { margin: 0; background: var(--surface); }
+main { padding: 10px 12px 8px; display: grid; gap: 8px; min-width: 0; }
 .row { display: flex; align-items: center; gap: 6px; }
-input, select, button { font: inherit; border: 1px solid #8292b550; border-radius: 9px;
-  color: inherit; background: light-dark(white,#222c3c); height: 36px; }
-button { padding: 0 10px; white-space: nowrap; }
-button:disabled { opacity: .45; }
-input, select { min-width: 0; flex: 1; padding: 0 8px; }
+input, select, button { font: inherit; color: inherit; border: 1px solid var(--line); border-radius: 8px; min-height: 36px; background: var(--field); }
+button { padding: 0 10px; white-space: nowrap; touch-action: manipulation; }
+button:disabled { opacity: .4; }
+button:active:not(:disabled) { background: var(--focus); }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+input, select { min-width: 0; flex: 1; padding: 0 9px; }
 input { font-size: 16px; width: 100%; }
-.primary { color: white; background: var(--accent); border-color: transparent; }
-#feedback { margin: 0; font-size: 13px; overflow-wrap: anywhere; }
+.primary { color: white; background: var(--accent-fill); border-color: transparent; font-weight: 600; }
+[aria-pressed="true"] { color: var(--accent); background: var(--focus); }
+#feedback { margin: 0; font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
 #feedback:empty { display: none; }
-dialog { width: min(440px, calc(100% - 22px)); border: 1px solid #8292b550;
-  border-radius: 15px; padding: 16px; color: inherit; background: light-dark(#fff,#222c3c); }
-dialog::backdrop { background: #101a2a66; }
+dialog {
+  width: min(440px, calc(100% - 22px)); padding: 18px; border: 1px solid var(--line);
+  border-radius: 14px; color: inherit; background: var(--field);
+}
+dialog::backdrop { background: #171c2880; }
 h2 { margin: 0 0 10px; font-size: 18px; }
 p { line-height: 1.45; }
-#report { border-top: 1px solid #8292b550; padding-top: 10px; }
-#report h2 { margin: 0; }
-dl { display: grid; grid-template-columns: minmax(105px, .7fr) minmax(0, 1.3fr); gap: 9px; margin: 10px 0; }
-dt { font-weight: 600; }
+#report { min-width: 0; border-top: 1px solid var(--line); padding-top: 10px; font-size: 13px; }
+#report h2 { margin: 0; font-size: 14px; }
+dl { display: grid; grid-template-columns: minmax(96px, .7fr) minmax(0, 1.3fr); gap: 9px; margin: 10px 0; }
+dt { color: var(--muted); font-weight: 600; }
 dd { margin: 0; overflow-wrap: anywhere; }
-#chooser { width: min(100%, 600px); margin: 0 auto; padding: 16px 4px 0; }
-#chooser header { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
-#chooser h1 { font-size: 24px; margin: 0; }
-#empty { opacity: .75; }
-#profileList { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 8px; }
-.profile { display: flex; align-items: stretch; gap: 8px; }
-.profile button { min-height: 44px; height: auto; }
-.open-profile { flex: 1; text-align: left; padding: 10px 12px; overflow-wrap: anywhere; white-space: normal; }
-.profile .open-profile{min-width:0}
-.profile .rule-profile{padding:0 9px}
-.delete-profile { color: light-dark(#ad2331,#ff9ca7); }
-#activeName { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#browserPanel { display: grid; gap: 8px; }
-#newProfile { white-space: normal; }
+#chooser { width: min(100%, 640px); margin: auto; padding: 16px 2px 0; }
+#chooser header { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+#chooser h1 { font-size: clamp(19px, 5vw, 26px); letter-spacing: -.035em; margin: 0; }
 .chooser-actions { flex-shrink: 0; }
-[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
-
+#newProfile { min-height: 44px; }
+#empty { color: var(--muted); }
+#profileList { list-style: none; margin: 12px 0 0; padding: 0; display: grid; }
+.profile { display: flex; align-items: stretch; border-bottom: 1px solid var(--line); }
+.profile button { min-height: 44px; height: auto; border: 0; background: transparent; }
+.open-profile { flex: 1; min-width: 0; text-align: left; padding: 10px 8px; overflow-wrap: anywhere; white-space: normal; font-weight: 600; }
+.profile .rule-profile { color: var(--accent); padding: 0 8px; }
+.delete-profile { color: light-dark(#a62435,#ff9ca7); }
+#activeName { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#browserPanel { display: grid; gap: 8px; min-width: 0; }
+#browserSettings, #chooserSettings { min-width: 44px; min-height: 44px; padding: 0; font-size: 19px; }
+#browserPanel button[aria-pressed="true"] { color: var(--accent); background: var(--focus); }
 .browser-landscape #panel { padding: 4px 8px; gap: 3px; }
-/* The controls use actual viewport width, which is narrower than the phone on a side rail. */
+.browser-landscape #chooser { width: min(100%, 880px); padding: 8px 4px 0; }
+.browser-landscape #feedback { max-height: 3em; overflow: auto; }
+.browser-landscape dialog { max-height: calc(100% - 12px); overflow: auto; }
+@media (min-width: 650px) {
+  .browser-landscape #profileList { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 24px; }
+}
 .browser-top #browserPanel:not([hidden]) {
-  display: grid; gap: 3px; align-items: center; min-width: 0;
-  grid-template-columns: auto 44px 44px minmax(0, 1fr) 44px minmax(62px, max-content) 44px 44px;
+  grid-template-columns: repeat(3, 44px) minmax(0, 1fr) 44px 62px 44px 44px;
+  gap: 3px; align-items: center;
 }
 .browser-top #browserPanel > .row:not(form),
 .browser-side #browserPanel > .row:not(form) { display: contents; }
 .browser-top #browserPanel button, .browser-top #address,
 .browser-side #browserPanel button, .browser-side #address { min-height: 44px; }
 .browser-top #activeName { display: none; }
-.browser-top #showProfiles { grid-area: 1 / 1; }
+.browser-top #showProfiles { grid-area: 1 / 1; font-size: 0; }
+.browser-top #showProfiles::after { content: "☰"; font-size: 17px; }
 .browser-top #back { grid-area: 1 / 2; }
 .browser-top #forward { grid-area: 1 / 3; }
 .browser-top #addressBar { grid-area: 1 / 4; min-width: 0; }
 .browser-top #go { display: none; }
 .browser-top #reload { grid-area: 1 / 5; }
-.browser-top #domainRules { grid-area: 1 / 6; }
+.browser-top #domainRules { grid-area: 1 / 6; padding: 0; font-size: 12px; font-weight: 650; }
 .browser-top #inspect { grid-area: 1 / 7; }
 .browser-top #browserSettings { grid-area: 1 / 8; }
-
-.browser-top :is(#showProfiles, #back, #forward, #reload, #inspect, #browserSettings),
-.browser-side :is(#back, #forward, #reload, #inspect, #browserSettings) {
-  padding: 0; background: transparent; border-color: transparent;
+.browser-top #browserPanel > .row button,
+.browser-side #browserPanel > .row button {
+  padding: 0; border-color: transparent; background: transparent;
 }
-.browser-top :is(#reload, #inspect), .browser-side :is(#reload, #inspect) { font-size: 0; }
-.browser-top #reload::after, .browser-side #reload::after { content: "↻"; font-size: 22px; }
+.browser-top #browserPanel > .row button:active:not(:disabled),
+.browser-side #browserPanel > .row button:active:not(:disabled) { background: var(--focus); }
+.browser-top :is(#reload, #inspect), .browser-side #reload { font-size: 0; }
+.browser-top #reload::after, .browser-side #reload::after { content: "↻"; font-size: 20px; }
 .browser-top #reload[data-loading]::after, .browser-side #reload[data-loading]::after { content: "×"; }
-.browser-top #inspect::after, .browser-side #inspect::after { content: "ⓘ"; font-size: 19px; }
-.browser-top #domainRules { padding: 0 8px; font-size: 13px; font-weight: 600; }
-@media (max-width: 570px) {
-  .browser-top #showProfiles { width: 44px; font-size: 0; }
-  .browser-top #showProfiles::after { content: "☰"; font-size: 17px; }
-}
-.browser-top #report { grid-column: 1 / -1; }
-.browser-landscape #feedback { max-height: 3em; overflow: auto; }
-.browser-landscape #chooser { width: min(100%, 880px); padding: 8px 4px 0; }
-.browser-landscape #newProfile { min-height: 44px; }
-.browser-landscape #profileList { margin-top: 8px; }
-@media (min-width: 650px) {
-.browser-landscape #profileList { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
-.browser-landscape dialog { max-height: calc(100% - 12px); overflow: auto; }
+.browser-top #inspect::after { content: "ⓘ"; font-size: 18px; }
+.browser-top #report, .browser-side #report { grid-column: 1 / -1; }
 
-
-.browser-side #panel { padding: 8px; min-width: 0; }
+.browser-side #panel { padding: 6px 9px 10px; }
 .browser-side #browserPanel:not([hidden]) {
-  min-width: 0; display: grid; gap: 6px; align-items: stretch;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px;
 }
 .browser-side #browserPanel button { min-width: 0; }
-.browser-side #showProfiles { grid-area: 1 / 1 / 2 / 3; text-align: left; }
-.browser-side #browserSettings { grid-area: 1 / 3; justify-self: end; width: 44px; }
-.browser-side #activeName {
-  grid-area: 2 / 1 / 3 / 4; padding: 0 2px;
-  font-size: 12px; font-weight: 600; color: light-dark(#4a5a72,#bcc9db);
+.browser-side #browserPanel::before {
+  content: ""; grid-area: 4 / 1 / 5 / 4; border-radius: 9px; background: var(--group);
 }
-.browser-side #addressBar { grid-area: 3 / 1 / 4 / 4; min-width: 0; gap: 4px; }
-.browser-side #go { flex: 0 0 44px; padding: 0 6px; }
-.browser-side #back { grid-area: 4 / 1; }
-.browser-side #forward { grid-area: 4 / 2; }
-.browser-side #reload { grid-area: 4 / 3; }
-.browser-side #domainRules { grid-area: 5 / 1 / 6 / 3; text-align: left; }
-.browser-side #inspect { grid-area: 5 / 3; }
-.browser-side #report { grid-column: 1 / -1; min-width: 0; }
+.browser-side #showProfiles { grid-area: 1 / 1 / 2 / 3; text-align: left; font-size: 13px; color: var(--muted); }
+.browser-side #browserSettings { grid-area: 1 / 3; justify-self: end; width: 44px; color: var(--muted); }
+.browser-side #activeName {
+  grid-area: 2 / 1 / 3 / 4; padding: 0 1px 2px;
+  font-size: 17px; font-weight: 650; letter-spacing: -.022em;
+}
+.browser-side #addressBar { grid-area: 3 / 1 / 4 / 4; min-width: 0; position: relative; }
+.browser-side #address { padding-right: 45px; }
+.browser-side #addressPreview { right: 44px; }
+.browser-side #go {
+  position: absolute; top: 0; right: 0; width: 44px; padding: 0; font-size: 0;
+  color: var(--accent); border: 0; background: transparent;
+}
+.browser-side #go::after { content: "↵"; font-size: 18px; }
+.browser-side #back { grid-area: 4 / 1; position: relative; }
+.browser-side #forward { grid-area: 4 / 2; position: relative; }
+.browser-side #reload { grid-area: 4 / 3; position: relative; }
+.browser-side #browserPanel #domainRules, .browser-side #browserPanel #inspect {
+  border: 0; border-bottom: 1px solid var(--line); border-radius: 0; text-align: left;
+  padding: 0 4px; font-size: 13px; font-weight: 600;
+}
+.browser-side #domainRules { grid-area: 5 / 1 / 6 / 4; }
+.browser-side #inspect { grid-area: 6 / 1 / 7 / 4; }
+.browser-side #domainRules::after, .browser-side #inspect::after { content: "›"; float: right; color: var(--muted); }
 .browser-side #report dl { grid-template-columns: minmax(0, 1fr); gap: 4px; }
-#browserSettings, #chooserSettings { min-width: 44px; min-height: 44px; font-size: 18px; padding: 0 8px; }
-
 .address-field { position: relative; display: flex; flex: 1; min-width: 0; }
 #addressPreview { display: none; }
 .browser-landscape .address-field[data-preview]:not(:focus-within) #address { color: transparent; }
 .browser-landscape .address-field[data-preview]:not(:focus-within) #addressPreview {
   display: block; position: absolute; inset: 0 9px; align-content: center;
   pointer-events: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  font-size: 15px;
+  font-size: 14px; font-weight: 550;
 }
+.browser-side .address-field[data-preview]:not(:focus-within) #addressPreview { right: 45px; }
 [hidden] { display: none !important; }
 </style>
 </head>
@@ -129,7 +147,7 @@ dd { margin: 0; overflow-wrap: anywhere; }
 <main id="panel">
   <section id="chooser" aria-label="Choose a browser profile">
     <header>
-      <h1>Choose a profile</h1>
+      <h1>Profiles</h1>
       <div class="row chooser-actions">
         <button id="chooserSettings" aria-label="Browser settings" title="Browser settings" hidden>⚙</button>
         <button class="primary" id="newProfile">New Profile</button>
