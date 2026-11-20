@@ -164,6 +164,36 @@ dd { margin: 0; overflow-wrap: anywhere; }
 .browser-icon-rail #domainRules[aria-pressed="true"],
 .browser-icon-rail #browserPanel :is(#railAddress, #railSettings, #railFingerprint, #railStatus):active { background: var(--focus); }
 
+
+.browser-edge { background: transparent; --edge-width: 26px; }
+.browser-edge body { background: transparent; }
+.browser-edge #panel { padding: 0; overflow: visible; }
+.browser-edge #sideActions, .browser-edge #edgeTools {
+  position: fixed; top: 16px; display: grid; gap: 5px; width: var(--edge-width);
+}
+.browser-edge[data-side="left"] #sideActions, .browser-edge[data-side="right"] #edgeTools { left: 4px; }
+.browser-edge[data-side="right"] #sideActions, .browser-edge[data-side="left"] #edgeTools { right: 4px; }
+.browser-edge #browserPanel :is(#sideActions button, #edgeTools button) {
+  min-height: 33px; height: 33px; min-width: 0; padding: 0; margin: 0;
+  border: 0; border-radius: 6px; background: var(--group);
+}
+.browser-edge #browserPanel #sideActions button[aria-pressed="true"] { background: var(--focus); color: var(--accent); }
+#domainDrawer { padding: 9px 12px; background: var(--field); border: 1px solid var(--line); border-radius: 12px; }
+#domainDrawer h2 { margin: 0; font-size: 15px; }
+#domainDrawer header { justify-content: space-between; }
+#domainDrawer header button { color: var(--accent); border: 0; background: none; min-height: 35px; }
+#domainDrawer header button:last-child { font-size: 20px; }
+#domainDrawer p { margin: 7px 0; font-size: 13px; overflow-wrap: anywhere; }
+#domainEntries { margin: 0; padding: 0; list-style: none; }
+#domainEntries li { padding: 6px 0; border-top: 1px solid var(--line); overflow-wrap: anywhere; }
+#domainEntries small { display: block; color: var(--muted); }
+.browser-edge #domainDrawer {
+  position: fixed; width: min(264px, calc(100vw - 100px)); max-height: calc(100dvh - 24px);
+  top: var(--domain-top, 160px); overflow: auto;
+}
+.browser-edge[data-side="left"] #domainDrawer { left: calc(var(--edge-width) + 12px); }
+.browser-edge[data-side="right"] #domainDrawer { right: calc(var(--edge-width) + 12px); }
+
 [hidden] { display: none !important; }
 </style>
 </head>
@@ -188,10 +218,12 @@ dd { margin: 0; overflow-wrap: anywhere; }
       <button id="domainRules" aria-label="Domain rules" title="Domain rules" aria-pressed="false" hidden>Domain</button>
       <button id="browserSettings" aria-label="Browser settings" title="Browser settings" hidden>⚙</button>
     </div>
+  <div id="edgeTools">
   <button id="railAddress" aria-label="Search or enter address" title="Search or enter address">Address</button>
   <button id="railSettings" aria-label="Settings" title="Settings">Settings</button>
   <button id="railFingerprint" aria-label="Fingerprint report" title="Fingerprint report">Fingerprint</button>
   <button id="railStatus" aria-label="Page status" title="Page status" hidden>Status</button>
+  </div>
   <form id="addressBar" class="row">
     <div class="address-field">
     <input id="address" type="text" inputmode="url" enterkeyhint="go" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Web address" placeholder="Search or enter a website">
@@ -217,6 +249,29 @@ dd { margin: 0; overflow-wrap: anywhere; }
   </section>
   <p id="feedback" role="status"></p>
 </main>
+
+<section id="domainDrawer" hidden aria-label="Domain rules">
+  <header class="row"><h2>Domain Rules</h2><span class="row"><button id="editDomains">Edit</button><button id="closeDomains" aria-label="Close Domain Rules">×</button></span></header>
+  <p id="domainDefault"></p><ul id="domainEntries"></ul>
+</section>
+<dialog id="toolbarDialog">
+  <h2>Landscape Toolbar</h2>
+  <label for="toolbarChoice">Position</label>
+  <select id="toolbarChoice"><option value="top">Top</option><option value="left">Left</option><option value="right">Right</option></select>
+  <button id="closeToolbar">Done</button>
+</dialog>
+<dialog id="addressDialog">
+  <h2>Search or enter a website</h2>
+  <form id="edgeAddressForm">
+    <input id="edgeAddress" type="text" aria-label="Address or search" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="go">
+    <div class="row"><button type="button" id="closeAddress">Cancel</button><button class="primary">Go</button></div>
+  </form><p id="addressError" role="status"></p>
+</dialog>
+<dialog id="statusDialog">
+  <h2 id="dialogStatusTitle"></h2><p id="dialogStatusText"></p><dl id="dialogReport"></dl>
+  <button id="closeStatus">Done</button>
+</dialog>
+
 <dialog id="create">
   <h2>New browser profile</h2>
   <p>Each profile stores its own cookies, site data and logins.</p>
@@ -295,19 +350,44 @@ async function call(command, args = {}) {
 function feedback(message) {
   $('feedback').textContent = message || '';
 }
+const chromeDialogs = ['toolbarDialog','addressDialog','statusDialog'];
+let sentChromeKey = '';
+function overlayLayout(active) {
+  if (state.chromeAPI !== 1 || !state.active) { sentChromeKey=''; return; }
+  const wideSpan = document.documentElement.clientWidth;
+  const fullHeight = document.documentElement.clientHeight;
+  const modal = chromeDialogs.some(id=>$(id).open);
+  const rails = ['sideActions','edgeTools'].map(id=>$(id).getBoundingClientRect()).sort((a,b)=>a.left-b.left);
+  const drawer = $('domainDrawer').getBoundingClientRect();
+  const areas = modal ? [[0,0,wideSpan,fullHeight]] : [...rails,drawer].filter(r=>r.width>0&&r.height>0)
+    .map(r=>[r.left,r.top,r.width,r.height]);
+  const insets = [0, Math.max(0,rails[0].right + 4), 0, Math.max(0,wideSpan - rails[1].left + 4)];
+  const payload = active ? {overlay:true,insets,hitRegions:areas} : {overlay:false};
+  if (active && (!wideSpan || !fullHeight || !areas.length)) return;
+  const key=JSON.stringify(payload);
+  if (key===sentChromeKey) return;
+  sentChromeKey=key;
+  call('chrome',payload).catch(()=>{ if (sentChromeKey===key) sentChromeKey=''; });
+}
 function adjustLayout() {
-  const panel = $('panel');
-  const topLandscape = document.documentElement.classList.contains('browser-top');
-  if (state.active && state.layoutVersion === 2 && state.toolbarPosition !== 'top') return;
+  const root=document.documentElement;
+  const edge=root.classList.contains('browser-edge');
+  overlayLayout(edge);
+  if (edge || (state.active && state.chromeAPI !== 1 && state.layoutVersion === 2 && state.toolbarPosition !== 'top')) return;
+  const topLandscape = root.classList.contains('browser-top');
+  const modalOpen = chromeDialogs.some(id=>$(id).open) || !$('domainDrawer').hidden;
   const dialogOpen = $('create').open || $('deleteProfile').open;
-  const contentHeight = Math.ceil(panel.getBoundingClientRect().height);
-  const size = Math.max(contentHeight, dialogOpen ? 310 : topLandscape ? 52 : 140);
+  const contentHeight = Math.ceil($('panel').getBoundingClientRect().height);
+  const size = Math.max(contentHeight, modalOpen ? 560 : dialogOpen ? 310 : topLandscape ? 52 : 140);
   const command = topLandscape ? 'compactResize' : 'resize';
   const key = command + ':' + size;
   if (layoutKey === key) return;
   layoutKey = key;
   call(command, { height: size }).catch(() => {});
 }
+window.addEventListener('resize', adjustLayout);
+window.visualViewport?.addEventListener('resize', adjustLayout);
+new ResizeObserver(adjustLayout).observe($('domainDrawer'));
 new ResizeObserver(adjustLayout).observe($('panel'));
 
 window.receiveBrowserState = next => {
@@ -322,10 +402,12 @@ window.receiveBrowserState = next => {
   if (upgraded) root.classList.toggle('browser-landscape', landscape);
   root.classList.toggle('browser-top', landscape && dock === 'top');
   root.classList.toggle('browser-side', dock !== 'top');
+  root.classList.toggle('browser-edge', dock !== 'top' && state.chromeAPI === 1);
+  root.dataset.side = dock;
   arrangeControls(dock !== 'top');
-  root.classList.toggle('browser-icon-rail', dock !== 'top' && state.iconRail === true);
+  root.classList.toggle('browser-icon-rail', dock !== 'top' && (state.iconRail === true || state.chromeAPI === 1));
   $('domainRules').hidden = !upgraded;
-  $('domainRules').setAttribute('aria-pressed', state.domainsOpen === true ? 'true' : 'false');
+  $('domainRules').setAttribute('aria-pressed', (state.chromeAPI === 1 ? !$('domainDrawer').hidden : state.domainsOpen === true) ? 'true' : 'false');
   $('browserSettings').hidden = !upgraded;
   $('chooserSettings').hidden = !upgraded;
   const activeProfile = state.profiles.find(profile => profile.id === state.active);
@@ -368,6 +450,9 @@ window.receiveBrowserState = next => {
   if (changedProfile) {
     inspection++;
     $('report').hidden = true;
+    $('domainDrawer').hidden = true;
+    $('domainRules').setAttribute('aria-pressed','false');
+    for (const id of chromeDialogs) if ($(id).open) $(id).close();
   }
   previousProfile = state.active;
   lastStateURL = state.url;
@@ -379,6 +464,7 @@ window.receiveBrowserState = next => {
   $('reload').toggleAttribute('data-loading', state.loading === true);
   feedback(state.status);
   $('railStatus').hidden = !state.status;
+  if (state.chromeAPI === 1 && !$('domainDrawer').hidden) renderDomainDrawer();
   adjustLayout();
 };
 
@@ -523,13 +609,92 @@ window.submitRailAddress = async entry => {
   const url = resolveAddress(entry, profile.searchEngine);
   if (url) window.receiveBrowserState(await call('navigate', {url}));
 };
-$('railAddress').onclick = () => action('railAddress');
-$('railSettings').onclick = () => action('browserSettings');
-$('railFingerprint').onclick = () => action('railFingerprint');
-$('railStatus').onclick = () => action('railStatus');
-$('domainRules').onclick = () => action('toggleDomains');
-$('browserSettings').onclick = $('chooserSettings').onclick = () => action('browserSettings');
-call('layoutReady', { version: 2, iconRail: true, edgeRails: true }).then(window.receiveBrowserState).catch(() => {});
+function popup(id) {
+  if (!$(id).open) $(id).showModal();
+  adjustLayout();
+}
+for (const id of chromeDialogs) $(id).addEventListener('close', adjustLayout);
+$('closeToolbar').onclick = () => dismiss('toolbarDialog');
+$('toolbarChoice').onchange = () => {
+  const position = $('toolbarChoice').value;
+  dismiss('toolbarDialog');
+  action('setToolbarPosition',{position});
+};
+function openToolbarSettings() {
+  if (state.chromeAPI !== 1) { action('browserSettings'); return; }
+  $('toolbarChoice').value=state.toolbarPosition || 'top';
+  popup('toolbarDialog');
+}
+$('railAddress').onclick = () => {
+  if (state.chromeAPI !== 1) { action('railAddress'); return; }
+  $('edgeAddress').value=state.url || '';
+  $('addressError').textContent='';
+  popup('addressDialog');
+  $('edgeAddress').focus();
+};
+$('closeAddress').onclick = () => dismiss('addressDialog');
+$('edgeAddressForm').onsubmit = async event => {
+  event.preventDefault();
+  try {
+    await window.submitRailAddress($('edgeAddress').value);
+    dismiss('addressDialog');
+  } catch (error) { $('addressError').textContent=error.message || String(error); }
+};
+$('railSettings').onclick = openToolbarSettings;
+$('railFingerprint').onclick = async () => {
+  if (state.chromeAPI !== 1) { action('railFingerprint'); return; }
+  const profile=state.active;
+  try {
+    const report=await call('inspect');
+    if (profile!==state.active) return;
+    $('dialogReport').replaceChildren(...fields.flatMap(([key,label])=>{
+      const term=document.createElement('dt'), value=document.createElement('dd');
+      term.textContent=label;
+      value.textContent=report?.[key]??'Unavailable';
+      return [term,value];
+    }));
+    $('dialogStatusTitle').textContent='Fingerprint';
+    $('dialogStatusText').textContent='';
+    popup('statusDialog');
+  } catch (error) { feedback(error.message || String(error)); }
+};
+$('railStatus').onclick = () => {
+  if (state.chromeAPI !== 1) { action('railStatus'); return; }
+  $('dialogReport').replaceChildren();
+  $('dialogStatusTitle').textContent='Page Status';
+  $('dialogStatusText').textContent=state.status;
+  popup('statusDialog');
+};
+$('closeStatus').onclick = () => dismiss('statusDialog');
+function renderDomainDrawer() {
+  $('domainDefault').textContent='Default · '+(state.domainFallback || 'DIRECT');
+  $('domainEntries').replaceChildren(...(state.domainRules || []).map(rule=>{
+    const row=document.createElement('li'), detail=document.createElement('small');
+    row.textContent=rule.value;
+    detail.textContent=rule.type+' · '+rule.policy;
+    row.append(detail);
+    return row;
+  }));
+  const drawer=$('domainDrawer');
+  const anchor=$('domainRules').getBoundingClientRect();
+  const top=Math.max(8,Math.min(anchor.top, document.documentElement.clientHeight - drawer.offsetHeight - 8));
+  drawer.style.setProperty('--domain-top',top+'px');
+}
+$('domainRules').onclick = () => {
+  if (state.chromeAPI !== 1) { action('toggleDomains'); return; }
+  $('domainDrawer').hidden=!$('domainDrawer').hidden;
+  $('domainRules').setAttribute('aria-pressed', String(!$('domainDrawer').hidden));
+  if (!$('domainDrawer').hidden) renderDomainDrawer();
+  adjustLayout();
+};
+$('closeDomains').onclick = () => {
+  $('domainDrawer').hidden=true;
+  $('domainRules').setAttribute('aria-pressed','false');
+  adjustLayout();
+};
+$('editDomains').onclick = () => { if (state.active) action('rules',{id:state.active}); };
+$('browserSettings').onclick = $('chooserSettings').onclick = openToolbarSettings;
+call('layoutReady', { version: 2, iconRail: true, edgeRails: true, chromeAPI: 1 }).then(window.receiveBrowserState).catch(() => {});
 action('state');
 </script>
 </body>

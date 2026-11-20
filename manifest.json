@@ -137,9 +137,9 @@
     {
       "id": "fingerprint-browser",
       "title": "Profile Browser",
-      "summary": "Separate browser profiles with domain rules and controls at both screen edges in landscape. Edge controls require the updated app.",
-      "version": "1.7.0",
-      "sha256": "05121e418b5998e57aeaaa6a705b57508fefdad4deb66b36f9b5c7f96796a210"
+      "summary": "Separate browser profiles with downloadable toolbar layouts, address and domain panels. Requires the Leisure Box browser host API.",
+      "version": "1.8.0",
+      "sha256": "e492bc3e6011437d930561aca81cd61c0b82eb6951d6d2f64394ca55951f21d1"
     },
     {
       "id": "proxy-config-converter",
