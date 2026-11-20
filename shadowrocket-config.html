@@ -455,14 +455,19 @@ if (window.profileRulesMode) {
       <div class="row"><input id="prNodeName" placeholder="Name" aria-label="Node name">
       <input id="prNodeURL" placeholder="socks5://host:1080" aria-label="Proxy URL" autocapitalize="off" autocomplete="off"></div>
       <button id="prAddNode">Add Node</button></section>
-    <section><h2>Import Rules</h2><p>Import a Shadowrocket configuration or paste domain rules.</p>
-      <input type="file" id="prFile" accept=".conf,.ini,.txt,.yaml,.yml">
-      <textarea id="prImport" rows="4" placeholder="DOMAIN-SUFFIX,example.com,DIRECT"></textarea>
-      <button id="prApplyImport">Append Imported Rules</button></section>
+    <section><h2>Import Rules</h2><p>Import Clash / Mihomo YAML, Shadowrocket CONF, or pasted rules.</p>
+      <input type="file" id="prFile" aria-label="Choose YAML or CONF file">
+      <textarea id="prImport" rows="4" aria-label="Configuration text" placeholder="DOMAIN-SUFFIX,example.com,DIRECT"></textarea>
+      <label for="prImportAction">Action for rules without an available policy</label>
+      <select id="prImportAction"></select>
+      <button id="prApplyImport">Append Imported Rules</button>
+      <p id="prImportStatus" role="status"></p></section>
     <p id="prStatus" role="status"></p>`;
   document.body.append(panel);
   const el = id => document.getElementById(id);
   let rules = [], nodes = [], fallback = 'DIRECT', loaded = false;
+  let selectedFormat = '', readRevision = 0;
+  const maxImportSize = 2 * 1024 * 1024;
 
   function message(text) { el('prStatus').textContent = text; }
   function send(command, values = {}) {
@@ -487,6 +492,11 @@ if (window.profileRulesMode) {
     const current = select(policies(), fallback, value => { fallback = value; });
     current.id = 'prDefault';
     el('prDefault').replaceWith(current);
+    const importAction = el('prImportAction');
+    const previousAction = importAction.value;
+    importAction.replaceChildren(new Option('Skip rules with no usable policy', ''));
+    for (const name of policies()) importAction.add(new Option(name, name));
+    if (policies().includes(previousAction)) importAction.value = previousAction;
     const ruleList = el('prRules');
     ruleList.replaceChildren();
     rules.forEach((rule,index) => {
@@ -566,37 +576,112 @@ if (window.profileRulesMode) {
       message('Node added.');
     } catch(error){message(error.message);}
   };
+  function importedRules(text, format) {
+    const clean = text.replace(/^\uFEFF/, '');
+    const first = clean.split(/\r\n|\r|\n/).map(line => line.trim())
+      .find(line => line && !/^[#;]/.test(line)) || '';
+    const looksConf = /^\[[\w -]+\](?:\s|$)/.test(first) || /^[A-Z0-9-]+\s*,/i.test(first);
+    if (format === 'conf' || (!format && looksConf)) {
+      return { ...parseConfig(clean.replace(/\r\n|\r/g,'\n'), 'conf'), format: 'CONF' };
+    }
+
+    let source;
+    try {
+      source = YAML.parse(clean, { maxAliasCount: 100, uniqueKeys: true });
+    } catch (error) {
+      const line = error.linePos?.[0]?.line;
+      throw Error(line ? 'Invalid YAML at line ' + line + '.' : 'Invalid YAML configuration.');
+    }
+    const payload = !Array.isArray(source) && Object.hasOwn(source || {}, 'payload');
+    const entries = Array.isArray(source) ? source : payload ? source.payload : source?.rules;
+    if (!Array.isArray(entries)) throw Error('YAML must contain a rules or payload list.');
+    const result = { rules: [], nodes: [], groups: [], skipped: [], format: 'YAML' };
+    if (source?.['proxy-groups']?.length) result.groups = source['proxy-groups'];
+    const configuredNodes = source?.proxies;
+    if (configuredNodes != null && !Array.isArray(configuredNodes)) {
+      result.skipped.push('The proxies field was not a list.');
+    }
+    for (const [index, raw] of (Array.isArray(configuredNodes) ? configuredNodes : []).entries()) {
+      const node = yamlProxy(raw);
+      if (node) result.nodes.push(node);
+      else result.skipped.push('Proxy node ' + (index + 1) + ' is unsupported.');
+    }
+    for (const [index, raw] of entries.entries()) {
+      let rule = typeof raw === 'string' ? parseRule(raw) : null;
+      if (!rule && typeof raw === 'string' && (payload || Array.isArray(source))) {
+        const parts = raw.trim().split(',').map(part => part.trim());
+        if (parts.length === 2 && /^(DOMAIN|DOMAIN-SUFFIX|DOMAIN-KEYWORD)$/i.test(parts[0])) {
+          rule = {type:parts[0].toUpperCase(), value:parts[1], policy:''};
+        } else if (parts.length === 1 && /^(?:\+\.)?[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)+\.?$/.test(parts[0])) {
+          const suffix = parts[0].startsWith('+.');
+          rule = {type:suffix?'DOMAIN-SUFFIX':'DOMAIN', value:suffix?parts[0].slice(2):parts[0], policy:''};
+        }
+      }
+      if (rule) result.rules.push(rule);
+      else result.skipped.push('YAML rule ' + (index + 1) + ' is unsupported.');
+    }
+    return result;
+  }
+
+  function showImportStatus(text) { el('prImportStatus').textContent = text; }
+  el('prImport').oninput=()=>{readRevision++; selectedFormat=''; showImportStatus('');};
   el('prFile').onchange=async event=>{
     const file=event.target.files[0];
-    if (!file) return;
-    try {
-      if(file.size>512*1024)throw Error('Choose a file up to 512 KB.');
-      el('prImport').value=await file.text();
-    }catch(error){message(error.message);}
     event.target.value='';
+    if (!file) return;
+    const ticket=++readRevision;
+    try {
+      if(file.size>maxImportSize) throw Error('Choose a file up to 2 MB.');
+      if(!/\.(?:yaml|yml|conf|ini|txt)$/i.test(file.name)) throw Error('Choose a YAML, CONF, INI or text file.');
+      const bytes=new Uint8Array(await file.arrayBuffer());
+      if(ticket!==readRevision) return;
+      const encoding=bytes[0]===255 && bytes[1]===254 ? 'utf-16le' :
+        bytes[0]===254 && bytes[1]===255 ? 'utf-16be' : 'utf-8';
+      el('prImport').value=new TextDecoder(encoding,{fatal:true}).decode(bytes);
+      selectedFormat=/\.ya?ml$/i.test(file.name)?'yaml':/\.(?:conf|ini)$/i.test(file.name)?'conf':'';
+      showImportStatus('File ready. Tap Append Imported Rules.');
+    }catch(error){ if(ticket===readRevision) showImportStatus(error.message); }
   };
   el('prApplyImport').onclick=()=>{
+    if (!loaded) return;
     try {
       const text=el('prImport').value.trim();
-      if (!text || new TextEncoder().encode(text).length>512*1024) throw Error('Enter rules up to 512 KB.');
-      const input=parseConfig(text,/^(rules|proxies):/m.test(text)?'yaml':'conf');
+      if (!text || new TextEncoder().encode(text).length>maxImportSize) throw Error('Enter rules up to 2 MB.');
+      const input=importedRules(text,selectedFormat);
+      const alternate=el('prImportAction').value;
       const notes=[...input.skipped];
-      if (input.groups.length) notes.push('Proxy groups need to be replaced with a node or a built-in action.');
+      if (input.groups.length) notes.push('Proxy groups are unavailable here. Select an action to import rules that use them.');
       for (const node of input.nodes) {
         if (nodes.some(existing=>existing.name===node.name)) { notes.push('Kept the existing node called '+node.name+'.');continue; }
         try { addNode(asNode(node)); } catch(error){notes.push(error.message);}
       }
-      let inserted=0;
+      const available=new Set(policies());
+      let added=0, skipped=0, remapped=0, defaultChanged=false;
       for (const rule of input.rules) {
-        if (!hostRuleKinds.has(rule.type) || rules.length>=1000) { notes.push('Skipped '+rule.type+'.');continue; }
-        const policy = rule.policy === 'PROXY' && nodes.length === 1 ? nodes[0].name : rule.policy;
-        if (['MATCH','FINAL'].includes(rule.type)) { fallback=policy;break; }
-        rules.push({type:rule.type,value:rule.value,policy});
-        inserted++;
+        const isDefault=['MATCH','FINAL'].includes(rule.type);
+        const value=(rule.value||'').toLowerCase().replace(/^\.+|\.+$/g,'');
+        if (!hostRuleKinds.has(rule.type) || (!isDefault && (rules.length>=1000 ||
+            !/^[a-z0-9._-]{1,253}$/.test(value)))) { skipped++; continue; }
+
+        const builtin=rule.policy.toUpperCase();
+        let policy=['DIRECT','REJECT'].includes(builtin)?builtin:rule.policy;
+        if (!available.has(policy) && alternate) { policy=alternate; remapped++; }
+        else if (input.format==='CONF' && policy==='PROXY' && nodes.length===1) policy=nodes[0].name;
+        if (!available.has(policy)) {
+          skipped++;
+          if (isDefault) break;
+          continue;
+        }
+        if (isDefault) { fallback=policy; defaultChanged=true; break; }
+        rules.push({type:rule.type,value,policy});
+        added++;
       }
+      if (skipped) notes.push(skipped+' domain or default rules skipped because the action or rule type was unavailable.');
+      if (remapped) notes.push(remapped+' rules use '+alternate+'.');
+      if (defaultChanged) notes.push('Default route set to '+fallback+'.');
       render();
-      message(inserted+' rules added. '+notes.slice(0,12).join(' ')+(notes.length>12?' More entries were skipped.':''));
-    }catch(error){message(error.message);}
+      showImportStatus(input.format+' · '+added+' rules added. '+notes.slice(0,12).join(' ')+(notes.length>12?' More entries were skipped.':''));
+    }catch(error){showImportStatus(error.message);}
   };
   el('prSave').onclick=async()=>{
     if (!loaded) return;

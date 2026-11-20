@@ -60,9 +60,9 @@
     {
       "id": "shadowrocket-config",
       "title": "Shadowrocket Config Studio",
-      "summary": "Edit Shadowrocket configurations or open a profile-specific Rules editor from Profile Browser.",
-      "version": "1.1.0",
-      "sha256": "12d61223aacf0bc27f6959259de47a15d1e6effdb40d9accff6666810a40f4c2"
+      "summary": "Edit Shadowrocket configurations or import YAML and CONF domain rules in Profile Browser's Rules editor.",
+      "version": "1.2.0",
+      "sha256": "6341da3e01f5db1e0bf1c64c2b7554041f488db740ccaac9084569d191dbc8dc"
     },
     {
       "id": "luma-sort",
