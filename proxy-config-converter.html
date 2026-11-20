@@ -20,6 +20,11 @@
 <section id="result" hidden>
 <label for="output">Converted configuration</label>
 <textarea id="output" rows="10" readonly></textarea>
+<section id="replacementSection" hidden>
+  <strong>Replace unavailable policies</strong>
+  <p class="muted">Choose where these rules should route in the converted file.</p>
+  <div id="replacementList"></div>
+</section>
 <div id="warning" hidden><strong>Review omitted entries</strong><ul id="skipped"></ul>
 <label><input id="approve" type="checkbox"> Export the converted entries only</label></div>
 <button id="export">Export</button>
@@ -312,6 +317,77 @@ function parseRule(line) {
   return { type, value, policy, options };
 }
 
+const groupTypes = new Set(['select','url-test','fallback']);
+
+function readGroup(raw, from, notes, location) {
+  const name = typeof raw?.name === 'string' ? raw.name.trim() : '';
+  const type = typeof raw?.type === 'string' ? raw.type.toLowerCase() : '';
+  if (!name || !groupTypes.has(type)) {
+    notes.push('Unsupported proxy group '+location+(name?' (“'+name+'”).':'.'));
+    return null;
+  }
+  const fields = new Set(['name','type','proxies']);
+  const options = {};
+  for (const key of ['url','interval','tolerance','timeout','hidden']) {
+    if (!Object.hasOwn(raw,key)) continue;
+    fields.add(key);
+    const value = raw[key];
+    let valid = false;
+    if (key === 'url') {
+      try {
+        const url = new URL(value);
+        valid = ['http:','https:'].includes(url.protocol) && !url.username && !url.password &&
+          !/[,\s]/.test(value);
+      } catch {}
+      if (valid) options.url = value;
+    } else if (key === 'hidden') {
+      valid = typeof value === 'boolean' || (from === 'conf' && /^(0|1|true|false)$/i.test(value));
+      if (valid) options.hidden = /^(1|true)$/i.test(String(value));
+    } else {
+      const number = Number(value);
+      valid = /^\d+$/.test(String(value)) && Number.isSafeInteger(number);
+      if (valid) options[key] = key === 'timeout' && from === 'conf' ? number * 1000 : number;
+    }
+    if (!valid) notes.push('Group “'+name+'” has an invalid '+key+' setting.');
+  }
+  const members = Array.isArray(raw.proxies) ? raw.proxies.filter(x=>typeof x==='string'&&x.trim()).map(x=>x.trim()) : [];
+  if (raw.proxies != null && (!Array.isArray(raw.proxies)||members.length!==raw.proxies.length)) {
+    notes.push('Group “'+name+'” has invalid members.');
+  }
+  const requestsExpansion = from==='yaml' && (raw['include-all-proxies']===true || raw['include-all']===true);
+  const filters = ['filter','exclude-filter','exclude-type'].some(key=>Object.hasOwn(raw,key));
+  const includeProxies = requestsExpansion && !filters;
+  if (requestsExpansion && filters) notes.push('Group “'+name+'” has filters that prevent including all proxies.');
+  if (from==='yaml') {
+    fields.add('include-all-proxies');
+    if (raw['include-all']!==true) fields.add('include-all');
+  }
+  const omitted = Object.keys(raw).filter(key=>!fields.has(key));
+  if (omitted.length) notes.push('Group “'+name+'” settings not carried over: '+omitted.join(', ')+'.');
+  return {name,type,members,options,includeProxies};
+}
+
+function readConfGroup(line, notes, number) {
+  const split = line.indexOf('=');
+  const parts = split>0 ? confFields(line.slice(split+1)) : null;
+  if (!parts?.length) {
+    notes.push('Invalid proxy group at line '+number+'.');
+    return null;
+  }
+  const [type,...fields] = parts;
+  const raw = Object.assign(Object.create(null), { name:line.slice(0,split).trim(),type,proxies:[] });
+  for (const field of fields) {
+    const equal = field.indexOf('=');
+    if (equal>0) {
+      const name = field.slice(0,equal).trim().toLowerCase();
+      if (!Object.hasOwn(raw,name)) raw[name] = stripQuotes(field.slice(equal+1).trim());
+    } else {
+      raw.proxies.push(field);
+    }
+  }
+  return readGroup(raw,'conf',notes,'at line '+number);
+}
+
 function parseConfig(text, direction) {
   const rules = [];
   const nodes = [];
@@ -335,11 +411,8 @@ function parseConfig(text, direction) {
       }
       if (section === 'rule' || !section) readRule(line, index + 1);
       if (section === 'proxy group') {
-        const match = /^([^=]+)=\s*select\s*,(.*)$/i.exec(line);
-        const members = match && confFields(match[2]);
-        if (members && members.every(value=>value && !value.includes('=')))
-          groups.push({name:match[1].trim(),members});
-        else skipped.push('Unsupported proxy group at line ' + (index + 1) + '.');
+        const group = readConfGroup(line,skipped,index+1);
+        if (group) groups.push(group);
       }
       if (section === 'proxy') {
         const node = confProxy(line);
@@ -354,12 +427,8 @@ function parseConfig(text, direction) {
     for (const key of ['rules','proxies','proxy-groups']) if (source[key] != null && !Array.isArray(source[key])) throw Error(key + ' must be a list.');
     for (const [index, line] of (source.rules ?? []).entries()) readRule(line,index+1);
     for (const [index, group] of (source['proxy-groups'] ?? []).entries()) {
-      if (group?.type==='select' && typeof group.name==='string' &&
-          Array.isArray(group.proxies) && group.proxies.length &&
-          group.proxies.every(value=>typeof value==='string'&&value) &&
-          Object.keys(group).every(key=>['name','type','proxies'].includes(key))) {
-        groups.push({name:group.name,members:group.proxies});
-      } else skipped.push('Unsupported proxy group at entry ' + (index+1) + '.');
+      const compatible = readGroup(group,'yaml',skipped,'at entry '+(index+1));
+      if (compatible) groups.push(compatible);
     }
     for (const [index, raw] of (source.proxies ?? []).entries()) {
       const node = yamlProxy(raw);
@@ -376,7 +445,7 @@ function formatRule(rule, direction) {
     ...(fallback ? [] : [rule.value]),rule.policy,...rule.options].join(',');
 }
 
-function conversion(result, direction) {
+function conversion(result, direction, replacements = new Map()) {
   const skipped = [...result.skipped];
   const names = new Set();
   const validNodes = result.nodes.filter(node => {
@@ -389,36 +458,82 @@ function conversion(result, direction) {
     names.add(node.name);
     return true;
   });
-  let pending = result.groups.filter(group => {
-    const good = group.name && !/[\r\n=,\[\]]/.test(group.name) &&
-      group.members.every(name=>!/[\r\n=,\[\]]/.test(name));
-    if (!good) skipped.push('A proxy group has characters that cannot be converted.');
-    return good;
-  });
-  const groups = [];
-  while (pending.length) {
-    const ready = pending.filter(group => group.members.every(name => names.has(name) || ['DIRECT','REJECT'].includes(name)));
-    if (!ready.length) {
-      for (const group of pending) skipped.push('Group “' + group.name + '” refers to a missing or circular policy.');
-      break;
-    }
-    for (const group of ready) {
-      if (names.has(group.name) || builtinPolicies.has(group.name.toUpperCase())) skipped.push('Duplicate or reserved policy “' + group.name + '” was omitted.');
-      else { groups.push(group); names.add(group.name); }
-    }
-    pending = pending.filter(group => !ready.includes(group));
+  const groupByName = new Map();
+  const builtin = ['DIRECT','REJECT'];
+  const known = new Map();
+  function indexName(name) {
+    const key = name.toUpperCase();
+    known.set(key, known.has(key) ? null : name);
   }
-  const proxyGroup = groups.find(group=>group.name.toUpperCase()==='PROXY');
+  for (const name of names) indexName(name);
+  for (const group of result.groups) {
+    if (/[\r\n=,\[\]]/.test(group.name) || names.has(group.name) ||
+        groupByName.has(group.name) || builtinPolicies.has(group.name.toUpperCase())) {
+      skipped.push('Duplicate or invalid group “'+group.name+'” was omitted.');
+      continue;
+    }
+    groupByName.set(group.name,group);
+    indexName(group.name);
+  }
+  function nameOf(raw) {
+    if (builtinPolicies.has(raw.toUpperCase())) return raw.toUpperCase();
+    return names.has(raw)||groupByName.has(raw) ? raw : known.get(raw.toUpperCase()) ?? raw;
+  }
+
+  const groups = [];
+  const visiting = new Set();
+  const unavailableGroups = new Set();
+  function resolveGroup(name) {
+    if (names.has(name)||builtinPolicies.has(name)) return true;
+    if (visiting.has(name)||unavailableGroups.has(name)||!groupByName.has(name)||visiting.size>=128) return false;
+    const group=groupByName.get(name);
+    visiting.add(name);
+    const members=[], missing=[];
+    for (const raw of [...new Set(group.members.concat(group.includeProxies?validNodes.map(node=>node.name):[]))]) {
+      const normalized = nameOf(raw);
+      if (resolveGroup(normalized)) {
+        if (!members.includes(normalized)) members.push(normalized);
+      } else {
+        missing.push(raw);
+      }
+    }
+    visiting.delete(name);
+    // A proxy group with only DIRECT or REJECT left can silently change routing.
+    if (!members.length || (missing.length && members.every(x=>builtinPolicies.has(x)))) {
+      unavailableGroups.add(name);
+      skipped.push('Group “'+name+'” has no usable proxy members after conversion.');
+      return false;
+    }
+    if (missing.length) skipped.push('Group “'+name+'” omitted '+missing.length+' unavailable members.');
+    const options={...group.options};
+    if (direction==='conf' && options.timeout!=null && options.timeout%1000!==0) {
+      delete options.timeout;
+      skipped.push('Group “'+name+'” has a subsecond timeout that was omitted.');
+    }
+    names.add(name);
+    groups.push({...group,members,options});
+    return true;
+  }
+  for (const name of groupByName.keys()) resolveGroup(name);
+  const choices=[...builtin,...names];
+  const available=new Set(choices);
+  const missingPolicies=new Map();
   const rules = [];
   for (const rule of result.rules) {
-    const policy = rule.policy === 'PROXY' && !names.has(rule.policy) && proxyGroup ? proxyGroup.name : rule.policy;
-    if (builtinPolicies.has(policy) || names.has(policy) || (policy === 'PROXY' && direction === 'conf')) {
+    let policy=nameOf(rule.policy);
+    if (builtinPolicies.has(policy)||names.has(policy)) {
       rules.push({...rule,policy});
-    } else {
-      skipped.push('Rule for ' + (rule.value || 'default traffic') + ' refers to an unavailable policy.');
+      continue;
     }
+    const replacement=replacements.get(rule.policy);
+    missingPolicies.set(rule.policy,(missingPolicies.get(rule.policy)||0)+1);
+    if (available.has(replacement)) rules.push({...rule,policy:replacement});
   }
-  if (!rules.length && !validNodes.length && !groups.length) return {output:'',skipped};
+  for (const [policy,count] of missingPolicies) {
+    const replacement=replacements.get(policy);
+    if (!available.has(replacement)) skipped.push('Policy “'+policy+'” could not be converted. '+count+' rules need a replacement.');
+  }
+  if (!rules.length && !validNodes.length && !groups.length) return {output:'',skipped,missingPolicies,choices};
   let output;
   if (direction === 'yaml') {
     output = ['proxies:',...validNodes.map(n=>'  - '+JSON.stringify({
@@ -428,7 +543,7 @@ function conversion(result, direction) {
       ...(n.password?{password:n.password}:{}),...(n.sni?{sni:n.sni}:{}),
       ...(n.skipVerify==null?{}:{'skip-cert-verify':n.skipVerify})
     })), 'rules:', ...rules.map(r=>'  - '+JSON.stringify(formatRule(r,'yaml')))].join('\n');
-    if (groups.length) output += '\nproxy-groups:\n' + groups.map(g=>'  - '+JSON.stringify({name:g.name,type:'select',proxies:g.members})).join('\n');
+    if (groups.length) output += '\nproxy-groups:\n' + groups.map(g=>'  - '+JSON.stringify({name:g.name,type:g.type,proxies:g.members,...g.options})).join('\n');
     if (!validNodes.length) output=output.replace(/^proxies:/,'proxies: []');
     if (!rules.length) output=output.replace(/^rules:$/m,'rules: []');
   } else {
@@ -439,10 +554,11 @@ function conversion(result, direction) {
       ...(n.password?[option('password',n.password)]:[]),
       ...(n.sni?[option('sni',n.sni)]:[]),
       ...(n.skipVerify==null?[]:[option('skip-cert-verify',n.skipVerify)])].join(', ')),
-      ...(groups.length?['','[Proxy Group]',...groups.map(g=>g.name+' = select, '+g.members.join(', '))]:[]),
+      ...(groups.length?['','[Proxy Group]',...groups.map(g=>g.name+' = '+[g.type,...g.members,...Object.entries(g.options).map(([key,value])=>
+        key+'='+(key==='hidden'?Number(value):key==='timeout'?value/1000:value))].join(', '))]:[]),
       '', '[Rule]', ...rules.map(r=>formatRule(r,'conf'))].join('\n');
   }
-  return {output:output+'\n',skipped, counts:[validNodes.length, groups.length, rules.length]};
+  return {output:output+'\n',skipped, counts:[validNodes.length, groups.length, rules.length], missingPolicies, choices};
 }
 
 </script>
@@ -450,6 +566,7 @@ function conversion(result, direction) {
 const $=id=>document.getElementById(id);
 const maxBytes = 2 * 1024 * 1024;
 let current, revision = 0, filename = '';
+const replacements = new Map();
 
 function invalidate() {
   current=null;
@@ -457,8 +574,8 @@ function invalidate() {
   $('status').textContent='';
   $('exportStatus').textContent='';
 }
-$('source').oninput=()=>{revision++; filename=''; invalidate();};
-$('direction').onchange=()=>{revision++; invalidate();};
+$('source').oninput=()=>{revision++; filename=''; replacements.clear(); invalidate();};
+$('direction').onchange=()=>{revision++; replacements.clear(); invalidate();};
 
 $('importFile').onclick=async()=>{
   const picker=window.webkit?.messageHandlers?.toolImport;
@@ -480,6 +597,7 @@ $('fileInput').onchange=async event=>{
   if (!file) return;
   event.target.value='';
   const ticket=++revision;
+  replacements.clear();
   filename='';
   $('source').value='';
   invalidate();
@@ -498,6 +616,33 @@ $('fileInput').onchange=async event=>{
   }
 };
 
+function renderReplacements() {
+  const list=$('replacementList');
+  list.replaceChildren();
+  const entries=[...current.missingPolicies];
+  $('replacementSection').hidden=!entries.length;
+  for (const [policy,count] of entries.slice(0,60)) {
+    const label=document.createElement('label');
+    label.textContent=policy+' · '+count+(count===1?' rule':' rules');
+    const select=document.createElement('select');
+    select.add(new Option('Skip these rules',''));
+    for (const available of current.choices) select.add(new Option(available,available));
+    select.value=replacements.get(policy)||'';
+    select.onchange=()=>{
+      if (select.value) replacements.set(policy,select.value);
+      else replacements.delete(policy);
+      convert();
+    };
+    label.append(select);
+    list.append(label);
+  }
+  if (entries.length>60) {
+    const note=document.createElement('p');
+    note.textContent='Showing the first 60 unavailable policies.';
+    list.append(note);
+  }
+}
+
 function convert() {
   invalidate();
   const text=$('source').value.trim();
@@ -510,7 +655,8 @@ function convert() {
   const from=selection==='auto'?detected:selection;
   const target=from==='conf'?'yaml':'conf';
   try {
-    current={...conversion(parseConfig(text,from),target),target};
+    current={...conversion(parseConfig(text,from),target,replacements),target};
+    renderReplacements();
     $('output').value=current.output;
     $('skipped').replaceChildren();
     for (const message of current.skipped.slice(0,80)) {
