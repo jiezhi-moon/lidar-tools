@@ -9,9 +9,9 @@
 <main>
 <section>
 <label for="direction">Conversion</label>
-<select id="direction"><option value="yaml">Clash YAML → Shadowrocket .conf</option><option value="conf">Shadowrocket .conf → Clash YAML</option></select>
-<p class="muted">Converts compatible rules and HTTP / SOCKS5 nodes. Omitted sections, unsupported nodes and unresolved policies are listed before export.</p>
-<label for="fileInput">Import file</label><input id="fileInput" type="file" accept=".yaml,.yml,.conf,.ini,.txt">
+<select id="direction"><option value="auto">Detect from configuration</option><option value="yaml">Clash YAML → Shadowrocket .conf</option><option value="conf">Shadowrocket .conf → Clash YAML</option></select>
+<p class="muted">Converts compatible Clash / Mihomo and Shadowrocket configurations. Review unsupported items before exporting.</p>
+<button id="importFile" type="button">Import File</button><input id="fileInput" type="file" hidden>
 <label for="source" style="margin-top:12px">Source configuration</label>
 <textarea id="source" rows="8" placeholder="Paste your configuration"></textarea>
 <div class="row"><button class="primary" id="convert">Convert</button></div>
@@ -23,6 +23,7 @@
 <div id="warning" hidden><strong>Review omitted entries</strong><ul id="skipped"></ul>
 <label><input id="approve" type="checkbox"> Export the converted entries only</label></div>
 <button id="export">Export</button>
+<p id="exportStatus" role="status"></p>
 </section>
 </main>
 <script>
@@ -188,64 +189,127 @@ window.jsyaml={load(text){const doc=YAML.parseDocument(text,{uniqueKeys:true});i
 
 const ruleKinds = new Set(['DOMAIN', 'DOMAIN-SUFFIX', 'DOMAIN-KEYWORD', 'IP-CIDR', 'IP-CIDR6', 'GEOIP', 'FINAL', 'MATCH']);
 const hostRuleKinds = new Set(['DOMAIN', 'DOMAIN-SUFFIX', 'DOMAIN-KEYWORD', 'FINAL', 'MATCH']);
-const builtinPolicies = new Set(['DIRECT', 'REJECT', 'PROXY']);
+const builtinPolicies = new Set(['DIRECT', 'REJECT']);
 const ipv4OrHost = /^[a-z0-9_.:-]+$/i;
 
 function stripQuotes(value) {
-  return value.replace(/^(['"])(.*)\1$/, '$2');
+  const match = /^(['"])(.*)\1$/.exec(value);
+  return match ? match[2] : value;
 }
+
+function confFields(text) {
+  const fields = [];
+  let start = 0, quote = '';
+  for (let index = 0; index < text.length; index++) {
+    const char = text[index];
+    if (quote) {
+      if (char === '\\') index++;
+      else if (char === quote) quote = '';
+    } else if ((char === '"' || char === "'") && /(?:^|[=,])\s*$/.test(text.slice(start,index))) {
+      quote = char;
+    } else if (char === ',') {
+      fields.push(stripQuotes(text.slice(start,index).trim()));
+      start = index + 1;
+    }
+  }
+  if (quote) return null;
+  fields.push(stripQuotes(text.slice(start).trim()));
+  return fields;
+}
+
+function trimComment(text) {
+  let quote = '';
+  for (let index = 0; index < text.length; index++) {
+    const char = text[index];
+    if (quote) {
+      if (char === '\\') index++;
+      else if (char === quote) quote = '';
+    } else if ((char === '"' || char === "'") &&
+      (index === 0 || /[=,]\s*$/.test(text.slice(0,index)))) {
+      quote = char;
+    } else if ((char === '#' || char === ';') && (index === 0 || /\s/.test(text[index-1]))) {
+      return text.slice(0,index).trim();
+    }
+  }
+  return text.trim();
+}
+
+function readOption(input, key) {
+  const value = input[key];
+  return value == null ? '' : typeof value === 'string' ? value : null;
+}
+
+function normalizedProxy(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const common = ['name','type','server','port'];
+  const kind = typeof raw.type === 'string' ? raw.type.toLowerCase() : '';
+  const keys = {
+    http: ['username','password','tls','sni','skip-cert-verify'],
+    https: ['username','password','tls','sni','skip-cert-verify'],
+    socks5: ['username','password','tls','udp'],
+    ss: ['cipher','password','udp'],
+    trojan: ['password','tls','sni','skip-cert-verify','network']
+  }[kind];
+  const host = typeof raw.server === 'string' ? raw.server.replace(/^\[(.+)\]$/,'$1') : '';
+  const port = typeof raw.port === 'number' || (typeof raw.port === 'string' && /^\d+$/.test(raw.port))
+    ? Number(raw.port) : 0;
+  if (!Array.isArray(keys) || Object.keys(raw).some(key => !common.includes(key) && !keys.includes(key)) ||
+    typeof raw.name !== 'string' || !raw.name.trim() || !ipv4OrHost.test(host) ||
+    !Number.isInteger(port) || port < 1 || port > 65535) return null;
+  const username = readOption(raw,'username'), password = readOption(raw,'password');
+  const cipher = readOption(raw,'cipher'), sni = readOption(raw,'sni');
+  if ([username,password,cipher,sni].includes(null) ||
+      (raw.tls != null && typeof raw.tls !== 'boolean') ||
+      (raw.udp != null && typeof raw.udp !== 'boolean') ||
+      (raw['skip-cert-verify'] != null && typeof raw['skip-cert-verify'] !== 'boolean')) return null;
+  const tls = kind === 'https' || kind === 'trojan' || raw.tls === true;
+  if ((['https','trojan'].includes(kind) && raw.tls === false) ||
+      (kind === 'socks5' && tls) ||
+      (['http','https','socks5'].includes(kind) && password && !username) ||
+      (kind === 'ss' && (!/^[a-z0-9_-]+$/i.test(cipher) || !password)) ||
+      (kind === 'trojan' && (!password || (raw.network != null && raw.network !== 'tcp'))) ||
+      (sni && (!tls || !ipv4OrHost.test(sni))) ||
+      (raw['skip-cert-verify'] === true && !tls)) return null;
+  return {name:raw.name, type:kind === 'https' ? 'http' : kind, host, port, username, password,
+    cipher, sni, tls, udp:raw.udp, skipVerify:raw['skip-cert-verify']};
+}
+
+function confProxy(line) {
+  const equals = line.indexOf('=');
+  if (equals <= 0) return null;
+  const name = line.slice(0,equals).trim();
+  const split = confFields(line.slice(equals+1));
+  if (!split || split.length < 3) return null;
+  const [type, server, port, ...options] = split;
+  const raw = Object.assign(Object.create(null), {name, type, server, port});
+  for (const option of options) {
+    const at = option.indexOf('=');
+    if (at < 1) return null;
+    let key = option.slice(0,at).trim().toLowerCase();
+    if (key === 'encrypt-method' || key === 'method') key = 'cipher';
+    if (key === 'udp-relay') key = 'udp';
+    if (key in raw) return null;
+    const value = stripQuotes(option.slice(at+1).trim());
+    if (key === 'tls' || key === 'skip-cert-verify' || key === 'udp') {
+      if (!/^(true|false)$/i.test(value)) return null;
+      raw[key] = value.toLowerCase() === 'true';
+    } else raw[key] = value;
+  }
+  return normalizedProxy(raw);
+}
+
+function yamlProxy(raw) { return normalizedProxy(raw); }
 
 function parseRule(line) {
   const [rawKind, ...fields] = line.split(',').map(part => part.trim());
   const type = rawKind.toUpperCase();
   if (!ruleKinds.has(type)) return null;
   const fallback = type === 'MATCH' || type === 'FINAL';
-  const [value, policy, ...options] = fallback ? ['', ...fields] : fields;
+  const [value, rawPolicy, ...options] = fallback ? ['', ...fields] : fields;
+  const policy = builtinPolicies.has(rawPolicy?.toUpperCase()) ? rawPolicy.toUpperCase() : rawPolicy;
   if (!policy || (!fallback && !value) || options.some(option => option !== 'no-resolve')) return null;
   if ((type.startsWith('DOMAIN')) && !ipv4OrHost.test(value)) return null;
   return { type, value, policy, options };
-}
-
-function validSocksOrHTTP(type, host, port, username, password) {
-  return ['http', 'https', 'socks5'].includes(type) && ipv4OrHost.test(host) &&
-    Number.isInteger(port) && port >= 1 && port <= 65535 &&
-    typeof username === 'string' && typeof password === 'string' && (!password || username);
-}
-
-function confProxy(line) {
-  const equals = line.indexOf('=');
-  if (equals <= 0) return null;
-  const name = line.slice(0, equals).trim();
-  const [rawType, host, rawPort, ...fields] = line.slice(equals + 1).split(',').map(s => s.trim());
-  const options = {};
-  for (const field of fields) {
-    const split = field.indexOf('=');
-    if (split < 1) return null;
-    const key = field.slice(0, split).trim().toLowerCase();
-    if (!['username','password','tls'].includes(key) || key in options) return null;
-    options[key] = stripQuotes(field.slice(split + 1).trim());
-  }
-  if (options.tls && !['true', 'false'].includes(options.tls)) return null;
-  const type = rawType === 'http' && options.tls === 'true' ? 'https' : rawType;
-  const port = Number(rawPort);
-  const username = options.username ?? '';
-  const password = options.password ?? '';
-  if (!name || !validSocksOrHTTP(type, host || '', port, username, password) ||
-      (type === 'socks5' && options.tls === 'true')) return null;
-  return {name, type, host, port, username, password};
-}
-
-function yamlProxy(raw) {
-  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
-  if (Object.keys(raw).some(key => !['name','type','server','port','username','password','tls'].includes(key))) return null;
-  const type = raw.type === 'http' && raw.tls === true ? 'https' : raw.type;
-  if (raw.tls != null && typeof raw.tls !== 'boolean') return null;
-  if (type === 'socks5' && raw.tls === true) return null;
-  const username = raw.username ?? '';
-  const password = raw.password ?? '';
-  if (typeof raw.name !== 'string' || !raw.name || typeof raw.server !== 'string' ||
-      !validSocksOrHTTP(type, raw.server, raw.port, username, password)) return null;
-  return {name:raw.name, type, host:raw.server, port:raw.port, username, password};
 }
 
 function parseConfig(text, direction) {
@@ -260,8 +324,8 @@ function parseConfig(text, direction) {
   }
   if (direction === 'conf') {
     let section = '';
-    for (const [index, item] of text.replace(/^\uFEFF/,'').split(/\r?\n/).entries()) {
-      const line = item.trim();
+    for (const [index, item] of text.replace(/^\uFEFF/,'').split(/\r\n|\r|\n/).entries()) {
+      const line = trimComment(item);
       if (!line || /^[#;]/.test(line)) continue;
       const header = /^\[([^\]]+)\]$/.exec(line);
       if (header) {
@@ -272,8 +336,8 @@ function parseConfig(text, direction) {
       if (section === 'rule' || !section) readRule(line, index + 1);
       if (section === 'proxy group') {
         const match = /^([^=]+)=\s*select\s*,(.*)$/i.exec(line);
-        const members = match?.[2].split(',').map(value=>value.trim());
-        if (match && members.every(value=>value && !value.includes('=')))
+        const members = match && confFields(match[2]);
+        if (members && members.every(value=>value && !value.includes('=')))
           groups.push({name:match[1].trim(),members});
         else skipped.push('Unsupported proxy group at line ' + (index + 1) + '.');
       }
@@ -314,13 +378,17 @@ function formatRule(rule, direction) {
 
 function conversion(result, direction) {
   const skipped = [...result.skipped];
+  const names = new Set();
   const validNodes = result.nodes.filter(node => {
-    const valid = !/[\r\n=,\[\]]/.test(node.name) &&
-      (direction === 'yaml' || !/[,\r\n]/.test(node.username+node.password));
-    if (!valid) skipped.push('A proxy entry has characters not supported by the target format.');
-    return valid;
+    const valid = !/[\r\n=,\[\]]/.test(node.name) && !builtinPolicies.has(node.name.toUpperCase()) &&
+      (direction === 'yaml' || [node.username,node.password].every(value=>value===value.trim() && !/[,\r\n"']|\s[#;]/.test(value)));
+    if (!valid || names.has(node.name)) {
+      skipped.push('A duplicate or invalid proxy name or value was omitted.');
+      return false;
+    }
+    names.add(node.name);
+    return true;
   });
-  const names = new Set(validNodes.map(node=>node.name));
   let pending = result.groups.filter(group => {
     const good = group.name && !/[\r\n=,\[\]]/.test(group.name) &&
       group.members.every(name=>!/[\r\n=,\[\]]/.test(name));
@@ -340,84 +408,160 @@ function conversion(result, direction) {
     }
     pending = pending.filter(group => !ready.includes(group));
   }
-  const rules = result.rules.filter(rule => {
-    const supported = ['DIRECT','REJECT'].includes(rule.policy) ||
-      (rule.policy === 'PROXY' && direction === 'conf') || names.has(rule.policy);
-    if (!supported) skipped.push('Rule for ' + (rule.value || 'default traffic') + ' refers to an omitted policy or group.');
-    return supported;
-  });
-  if (!rules.length && !validNodes.length && !groups.length) throw Error('There are no convertible nodes or rules.');
+  const proxyGroup = groups.find(group=>group.name.toUpperCase()==='PROXY');
+  const rules = [];
+  for (const rule of result.rules) {
+    const policy = rule.policy === 'PROXY' && !names.has(rule.policy) && proxyGroup ? proxyGroup.name : rule.policy;
+    if (builtinPolicies.has(policy) || names.has(policy) || (policy === 'PROXY' && direction === 'conf')) {
+      rules.push({...rule,policy});
+    } else {
+      skipped.push('Rule for ' + (rule.value || 'default traffic') + ' refers to an unavailable policy.');
+    }
+  }
+  if (!rules.length && !validNodes.length && !groups.length) return {output:'',skipped};
   let output;
   if (direction === 'yaml') {
     output = ['proxies:',...validNodes.map(n=>'  - '+JSON.stringify({
-      name:n.name,type:n.type==='https'?'http':n.type,server:n.host,port:n.port,
-      ...(n.type==='https'?{tls:true}:{}),...(n.username?{username:n.username,password:n.password}:{})
+      name:n.name,type:n.type,server:n.host,port:n.port,
+      ...(n.type==='http'&&n.tls?{tls:true}:{}),...(n.udp==null?{}:{udp:n.udp}),
+      ...(n.cipher?{cipher:n.cipher}:{}),...(n.username?{username:n.username}:{}),
+      ...(n.password?{password:n.password}:{}),...(n.sni?{sni:n.sni}:{}),
+      ...(n.skipVerify==null?{}:{'skip-cert-verify':n.skipVerify})
     })), 'rules:', ...rules.map(r=>'  - '+JSON.stringify(formatRule(r,'yaml')))].join('\n');
     if (groups.length) output += '\nproxy-groups:\n' + groups.map(g=>'  - '+JSON.stringify({name:g.name,type:'select',proxies:g.members})).join('\n');
     if (!validNodes.length) output=output.replace(/^proxies:/,'proxies: []');
     if (!rules.length) output=output.replace(/^rules:$/m,'rules: []');
   } else {
-    output = ['[Proxy]', ...validNodes.map(n=>n.name+' = '+[n.type==='https'?'http':n.type,n.host,n.port,
-      ...(n.type==='https'?['tls=true']:[]),...(n.username?['username='+n.username,'password='+n.password]:[])].join(', ')),
+    const option = (key,value) => key+'='+value;
+    output = ['[Proxy]', ...validNodes.map(n=>n.name+' = '+[n.type,n.host,n.port,
+      ...(n.type==='http'&&n.tls?['tls=true']:[]),...(n.udp==null?[]:[option('udp-relay',n.udp)]),...(n.cipher?[option('encrypt-method',n.cipher)]:[]),
+      ...(n.username?[option('username',n.username)]:[]),
+      ...(n.password?[option('password',n.password)]:[]),
+      ...(n.sni?[option('sni',n.sni)]:[]),
+      ...(n.skipVerify==null?[]:[option('skip-cert-verify',n.skipVerify)])].join(', ')),
       ...(groups.length?['','[Proxy Group]',...groups.map(g=>g.name+' = select, '+g.members.join(', '))]:[]),
       '', '[Rule]', ...rules.map(r=>formatRule(r,'conf'))].join('\n');
   }
-  return {output:output+'\n',skipped};
+  return {output:output+'\n',skipped, counts:[validNodes.length, groups.length, rules.length]};
 }
 
 </script>
 <script>
 const $=id=>document.getElementById(id);
-let current;
-function invalidate(){current=null;$('result').hidden=true;$('status').textContent='';}
-$('source').oninput=invalidate;
-$('direction').onchange=invalidate;
-$('fileInput').onchange=async e=>{
-  const file=e.target.files[0];
-  if (!file) return;
-  invalidate();
-  if (file.size>512*1024){$('status').textContent='Choose a file up to 512 KB.';return;}
-  try{
-    $('source').value=await file.text();
-    $('direction').value=/\.(conf|ini)$/i.test(file.name)?'conf':'yaml';
-  }catch(error){$('status').textContent=error.message;}
-  e.target.value='';
-};
-$('convert').onclick=()=>{
-  invalidate();
-  const from=$('direction').value;
-  const text=$('source').value.trim();
-  if(!text || new TextEncoder().encode(text).length>512*1024){$('status').textContent='Enter a configuration up to 512 KB.';return;}
-  try{
-    const to=from==='conf'?'yaml':'conf';
-    current={...conversion(parseConfig(text,from),to),to};
-    $('output').value=current.output;
-    $('skipped').replaceChildren();
-    for(const message of current.skipped.slice(0,80)){
-      const li=document.createElement('li');li.textContent=message;$('skipped').append(li);
-    }
-    if(current.skipped.length>80){
-      const li=document.createElement('li');li.textContent='Plus '+(current.skipped.length-80)+' more omitted entries.';$('skipped').append(li);
-    }
-    $('warning').hidden=!current.skipped.length;$('approve').checked=false;
-    $('export').disabled=Boolean(current.skipped.length);$('result').hidden=false;
-  }catch(error){$('status').textContent=error.message || String(error);}
-};
-$('approve').onchange=()=>{$('export').disabled=Boolean(current?.skipped.length)&&!$('approve').checked;};
-$('export').onclick=async()=>{
-  if(!current || (current.skipped.length && !$('approve').checked))return;
-  const name='converted.'+current.to;
-  try{
-    const bytes=new TextEncoder().encode(current.output);
-    const bridge=window.webkit?.messageHandlers?.toolExport;
-    if(bridge){
-      let binary='';for(let i=0;i<bytes.length;i+=16384)binary+=String.fromCharCode(...bytes.subarray(i,i+16384));
-      await bridge.postMessage({name,data:btoa(binary)});
-    }else{
-      const link=document.createElement('a');link.href=URL.createObjectURL(new Blob([bytes],{type:'text/plain'}));
-      link.download=name;link.click();setTimeout(()=>URL.revokeObjectURL(link.href),1000);
-    }
-  }catch(error){$('status').textContent=error.message || String(error);}
+const maxBytes = 2 * 1024 * 1024;
+let current, revision = 0, filename = '';
+
+function invalidate() {
+  current=null;
+  $('result').hidden=true;
+  $('status').textContent='';
+  $('exportStatus').textContent='';
+}
+$('source').oninput=()=>{revision++; filename=''; invalidate();};
+$('direction').onchange=()=>{revision++; invalidate();};
+
+$('importFile').onclick=async()=>{
+  const picker=window.webkit?.messageHandlers?.toolImport;
+  if (!picker) { $('fileInput').click(); return; }
+  try { await picker.postMessage({source:'file'}); }
+  catch(error) { $('status').textContent=error.message || String(error); }
 };
 
+function detectFormat(source) {
+  const lines=source.split(/\r\n|\r|\n/).map(line=>line.trim());
+  const first=lines.find(line=>line && !/^[#;]/.test(line));
+  if (/^\[(?:general|rule|proxy|proxy group|host|url rewrite|script)\]\s*(?:[;#].*)?$/i.test(first || '')) return 'conf';
+  if (/^(?:DOMAIN(?:-SUFFIX|-KEYWORD)?|IP-CIDR6?|GEOIP|FINAL|MATCH)\s*,/i.test(first || '')) return 'conf';
+  return 'yaml';
+}
+
+$('fileInput').onchange=async event=>{
+  const file=event.target.files[0];
+  if (!file) return;
+  event.target.value='';
+  const ticket=++revision;
+  filename='';
+  $('source').value='';
+  invalidate();
+  if (file.size>maxBytes) { $('status').textContent='Choose a configuration up to 2 MB.'; return; }
+  try {
+    const bytes=new Uint8Array(await file.arrayBuffer());
+    if (ticket!==revision) return;
+    const encoding=bytes[0]===255 && bytes[1]===254 ? 'utf-16le' :
+      bytes[0]===254 && bytes[1]===255 ? 'utf-16be' : 'utf-8';
+    $('source').value=new TextDecoder(encoding,{fatal:true}).decode(bytes);
+    filename=file.name;
+    $('direction').value='auto';
+    convert();
+  } catch (error) {
+    if (ticket===revision) $('status').textContent='Could not read the file as UTF-8 or UTF-16 text.';
+  }
+};
+
+function convert() {
+  invalidate();
+  const text=$('source').value.trim();
+  if (!text || new TextEncoder().encode(text).length>maxBytes) {
+    $('status').textContent='Enter a configuration up to 2 MB.';
+    return;
+  }
+  const selection=$('direction').value;
+  const detected=detectFormat(text);
+  const from=selection==='auto'?detected:selection;
+  const target=from==='conf'?'yaml':'conf';
+  try {
+    current={...conversion(parseConfig(text,from),target),target};
+    $('output').value=current.output;
+    $('skipped').replaceChildren();
+    for (const message of current.skipped.slice(0,80)) {
+      const item=document.createElement('li');
+      item.textContent=message;
+      $('skipped').append(item);
+    }
+    if (current.skipped.length>80) {
+      const more=document.createElement('li');
+      more.textContent=(current.skipped.length-80)+' more omitted items.';
+      $('skipped').append(more);
+    }
+    const ready=Boolean(current.output);
+    $('warning').hidden=!current.skipped.length;
+    $('approve').checked=false;
+    $('approve').disabled=!ready;
+    $('export').disabled=!ready||Boolean(current.skipped.length);
+    $('result').hidden=!ready&&!current.skipped.length;
+    $('status').textContent=ready
+      ? current.counts[0]+' nodes · '+current.counts[1]+' groups · '+current.counts[2]+' rules'
+      : 'No compatible entries were found. Review the omitted items below.';
+  } catch (error) {
+    const alternate=selection!=='auto' && detected!==from ? ' Check the conversion direction.' : '';
+    // Parser errors can contain the line holding a password.
+    $('status').textContent=(error.linePos
+      ? 'Invalid YAML at line '+error.linePos[0].line+'.'
+      : (error.message || String(error)))+alternate;
+  }
+}
+$('convert').onclick=convert;
+$('approve').onchange=()=>{
+  $('export').disabled=!current?.output || (Boolean(current.skipped.length) && !$('approve').checked);
+};
+$('export').onclick=async()=>{
+  if (!current?.output || (current.skipped.length && !$('approve').checked)) return;
+  const base=filename.replace(/\.[^.]+$/,'').replace(/[^\p{L}\p{N} ._-]/gu,'_').trim().slice(0,100);
+  const name=(base||'converted')+'.'+current.target;
+  try {
+    const bytes=new TextEncoder().encode(current.output);
+    const bridge=window.webkit?.messageHandlers?.toolExport;
+    if (bridge) {
+      let binary='';
+      for (let i=0;i<bytes.length;i+=16384) binary+=String.fromCharCode(...bytes.subarray(i,i+16384));
+      await bridge.postMessage({name,data:btoa(binary)});
+    } else {
+      const link=document.createElement('a');
+      link.href=URL.createObjectURL(new Blob([bytes],{type:'text/plain'}));
+      link.download=name;
+      link.click();
+      setTimeout(()=>URL.revokeObjectURL(link.href),1000);
+    }
+  } catch (error) { $('exportStatus').textContent=error.message || String(error); }
+};
 </script>

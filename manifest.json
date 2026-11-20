@@ -144,9 +144,9 @@
     {
       "id": "proxy-config-converter",
       "title": "Proxy Config Converter",
-      "version": "1.0.0",
-      "summary": "Convert supported Clash YAML and Shadowrocket .conf rules, HTTP and SOCKS5 nodes, and select groups. Review omitted entries before export.",
-      "sha256": "8506eeef9f8fdba777b6bf70b734c80e186d4934f69dc12373703a2b7d3374f1"
+      "version": "1.1.0",
+      "summary": "Convert Clash YAML and Shadowrocket CONF with automatic format detection. Supports basic Shadowsocks, Trojan, HTTP and SOCKS5 nodes, select groups and compatible rules.",
+      "sha256": "ff738b8be9aed116502a167ba5e3a7580eef61ef16682dff1445e516237ba4f3"
     }
   ]
 }
