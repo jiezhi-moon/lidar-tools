@@ -137,9 +137,9 @@
     {
       "id": "fingerprint-browser",
       "title": "Profile Browser",
-      "summary": "Separate browser profiles with domain rules and a single-icon-wide landscape side toolbar. The narrow toolbar requires the updated app.",
-      "version": "1.6.0",
-      "sha256": "103dcdd959b404581919f458c06b2895b1d8a3d206cef99d0ee99b0f2dae66a5"
+      "summary": "Separate browser profiles with domain rules and controls at both screen edges in landscape. Edge controls require the updated app.",
+      "version": "1.7.0",
+      "sha256": "05121e418b5998e57aeaaa6a705b57508fefdad4deb66b36f9b5c7f96796a210"
     },
     {
       "id": "proxy-config-converter",

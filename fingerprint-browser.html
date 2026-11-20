@@ -529,7 +529,7 @@ $('railFingerprint').onclick = () => action('railFingerprint');
 $('railStatus').onclick = () => action('railStatus');
 $('domainRules').onclick = () => action('toggleDomains');
 $('browserSettings').onclick = $('chooserSettings').onclick = () => action('browserSettings');
-call('layoutReady', { version: 2, iconRail: true }).then(window.receiveBrowserState).catch(() => {});
+call('layoutReady', { version: 2, iconRail: true, edgeRails: true }).then(window.receiveBrowserState).catch(() => {});
 action('state');
 </script>
 </body>
